@@ -8,6 +8,7 @@ import { RoleGuard } from './RoleGuard';
 import { GuestRoute } from './GuestRoute';
 
 import { LandingPage } from '../pages/public/LandingPage';
+import { HomePage } from '../pages/customer/HomePage';
 import { SearchPage } from '../pages/public/SearchPage';
 import { RestaurantDetailPage } from '../pages/public/RestaurantDetailPage';
 
@@ -18,6 +19,7 @@ import { ResetPasswordPage } from '../pages/auth/ResetPasswordPage';
 import { VerifyEmailPage } from '../pages/auth/VerifyEmailPage';
 import { UnauthorizedPage } from '../pages/auth/UnauthorizedPage';
 
+import { FavoritesPage } from '../pages/customer/FavoritesPage';
 import { CheckoutPage } from '../pages/customer/CheckoutPage';
 import { OrderSuccessPage } from '../pages/customer/OrderSuccessPage';
 import { OrderTrackingPage } from '../pages/customer/OrderTrackingPage';
@@ -32,6 +34,7 @@ export const router = createBrowserRouter([
     element: <MainLayout />,
     children: [
       { index: true, element: <LandingPage /> },
+      { path: 'home', element: <HomePage /> },
       { path: 'search', element: <SearchPage /> },
       { path: 'restaurant/:id', element: <RestaurantDetailPage /> },
 
@@ -51,6 +54,7 @@ export const router = createBrowserRouter([
       {
         element: <ProtectedRoute />,
         children: [
+          { path: 'favorites', element: <FavoritesPage /> },
           { path: 'orders', element: <OrderHistoryPage /> },
           { path: 'order-success/:orderId', element: <OrderSuccessPage /> },
           { path: 'track-order/:orderId', element: <OrderTrackingPage /> },

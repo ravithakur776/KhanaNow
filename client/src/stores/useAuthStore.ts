@@ -3,6 +3,8 @@ import { create } from 'zustand';
 export interface User {
   id: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
   phone: string;
   role: 'customer' | 'restaurant_owner' | 'admin' | 'delivery_partner';
