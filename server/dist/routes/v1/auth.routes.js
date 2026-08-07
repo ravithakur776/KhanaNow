@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_controller_js_1 = require("../../controllers/auth.controller.js");
+const validate_middleware_js_1 = require("../../middlewares/validate.middleware.js");
+const auth_middleware_js_1 = require("../../middlewares/auth.middleware.js");
+const auth_validator_js_1 = require("../../validators/auth.validator.js");
+const router = (0, express_1.Router)();
+router.post('/register', (0, validate_middleware_js_1.validateRequest)(auth_validator_js_1.registerSchema), (req, res, next) => auth_controller_js_1.authController.register(req, res, next));
+router.post('/login', (0, validate_middleware_js_1.validateRequest)(auth_validator_js_1.loginSchema), (req, res, next) => auth_controller_js_1.authController.login(req, res, next));
+router.post('/refresh-token', (req, res, next) => auth_controller_js_1.authController.refreshToken(req, res, next));
+router.post('/logout', auth_middleware_js_1.authenticate, (req, res, next) => auth_controller_js_1.authController.logout(req, res, next));
+router.get('/me', auth_middleware_js_1.authenticate, (req, res, next) => auth_controller_js_1.authController.getMe(req, res, next));
+exports.default = router;
