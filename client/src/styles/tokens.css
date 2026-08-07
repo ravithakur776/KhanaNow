@@ -1,0 +1,149 @@
+/* ==========================================================================
+   KhanaNow Enterprise Design Tokens & Theme CSS Variables
+   Aesthetic Architecture: Dark-First Glassmorphism + Warm Amber/Saffron Tint
+   ========================================================================== */
+
+:root {
+  /* Brand Color Palette - Primary (Saffron / Warm Ember) */
+  --primary-50: 20 100% 97%;
+  --primary-100: 20 100% 92%;
+  --primary-200: 20 100% 84%;
+  --primary-300: 20 98% 72%;
+  --primary-400: 20 96% 62%;
+  --primary-500: 20 95% 55%;  /* Primary Brand: #F95716 */
+  --primary-600: 18 92% 48%;
+  --primary-700: 16 88% 40%;
+  --primary-800: 14 82% 32%;
+  --primary-900: 12 76% 25%;
+
+  /* Accent Colors */
+  --accent-veg: 142 71% 45%;     /* Fresh Emerald Green #22C55E */
+  --accent-nonveg: 350 89% 60%;  /* Vibrant Crimson Red #F43F5E */
+  --accent-egg: 45 93% 47%;      /* Golden Amber #EAB308 */
+  --accent-rating: 38 92% 50%;   /* Star Rating Yellow #F59E0B */
+
+  /* Neutral Scale */
+  --slate-50: 210 40% 98%;
+  --slate-100: 210 40% 96%;
+  --slate-200: 214 32% 91%;
+  --slate-300: 213 27% 84%;
+  --slate-400: 215 20% 65%;
+  --slate-500: 215 16% 47%;
+  --slate-600: 215 19% 35%;
+  --slate-700: 215 25% 27%;
+  --slate-800: 217 33% 17%;
+  --slate-900: 222 47% 11%;
+  --slate-950: 224 71% 4%;     /* Deep Obsidian #090D16 */
+
+  /* Border Radii Tokens */
+  --radius-xs: 0.375rem; /* 6px */
+  --radius-sm: 0.5rem;   /* 8px */
+  --radius-md: 0.75rem;  /* 12px */
+  --radius-lg: 1rem;     /* 16px */
+  --radius-xl: 1.5rem;   /* 24px */
+  --radius-2xl: 2rem;    /* 32px */
+  --radius-full: 9999px;
+
+  /* Elevation & Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  --shadow-glow: 0 0 25px -5px rgba(249, 87, 22, 0.35);
+
+  /* Animation Timings */
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Z-Index Scale */
+  --z-base: 0;
+  --z-dropdown: 1000;
+  --z-sticky: 1100;
+  --z-fixed: 1200;
+  --z-modal-backdrop: 1300;
+  --z-modal: 1400;
+  --z-popover: 1500;
+  --z-toast: 1600;
+  --z-tooltip: 1700;
+}
+
+/* ==========================================================================
+   Dark Theme (Default Platform Aesthetics)
+   ========================================================================== */
+.dark, :root {
+  --background: var(--slate-950);
+  --foreground: var(--slate-50);
+
+  --card: var(--slate-900);
+  --card-foreground: var(--slate-50);
+  --card-hover: 222 47% 14%;
+
+  --popover: var(--slate-900);
+  --popover-foreground: var(--slate-50);
+
+  --primary: var(--primary-500);
+  --primary-foreground: 0 0% 100%;
+  --primary-hover: var(--primary-600);
+
+  --secondary: 217 19% 16%;
+  --secondary-foreground: var(--slate-50);
+
+  --muted: 217 19% 15%;
+  --muted-foreground: var(--slate-400);
+
+  --accent: 217 19% 18%;
+  --accent-foreground: var(--slate-50);
+
+  --destructive: var(--accent-nonveg);
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 217 19% 18%;
+  --input: 217 19% 18%;
+  --ring: var(--primary-500);
+
+  --glass-bg: rgba(15, 23, 42, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+/* ==========================================================================
+   Light Theme (Clean White & Slate Aesthetic)
+   ========================================================================== */
+.light {
+  --background: 0 0% 99%;
+  --foreground: 224 71% 4%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 224 71% 4%;
+  --card-hover: 210 40% 97%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 224 71% 4%;
+
+  --primary: var(--primary-500);
+  --primary-foreground: 0 0% 100%;
+  --primary-hover: var(--primary-600);
+
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 224 71% 4%;
+
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+
+  --accent: 210 40% 94%;
+  --accent-foreground: 224 71% 4%;
+
+  --destructive: 350 89% 60%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: var(--primary-500);
+
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.08);
+}
