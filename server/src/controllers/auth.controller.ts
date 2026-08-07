@@ -14,12 +14,7 @@ export class AuthController {
   async register(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const result = await authService.register(req.body);
-      res.cookie('refreshToken', result.refreshToken, COOKIE_OPTIONS);
-
-      sendResponse(res, 201, 'User registered successfully', {
-        user: result.user,
-        accessToken: result.accessToken,
-      });
+      sendResponse(res, 201, result.message, { user: result.user });
     } catch (error) {
       next(error);
     }
@@ -34,6 +29,46 @@ export class AuthController {
         user: result.user,
         accessToken: result.accessToken,
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async verifyEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email, otp } = req.body;
+      const result = await authService.verifyEmail(email, otp);
+      sendResponse(res, 200, result.message);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async resendVerification(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email } = req.body;
+      const result = await authService.resendVerification(email);
+      sendResponse(res, 200, result.message);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async forgotPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email } = req.body;
+      const result = await authService.forgotPassword(email);
+      sendResponse(res, 200, result.message);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email, otp, newPassword } = req.body;
+      const result = await authService.resetPassword(email, otp, newPassword);
+      sendResponse(res, 200, result.message);
     } catch (error) {
       next(error);
     }

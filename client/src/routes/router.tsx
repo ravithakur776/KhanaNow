@@ -5,10 +5,19 @@ import { CheckoutLayout } from '../layouts/CheckoutLayout';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { ProtectedRoute } from './ProtectedRoute';
 import { RoleGuard } from './RoleGuard';
+import { GuestRoute } from './GuestRoute';
 
 import { LandingPage } from '../pages/public/LandingPage';
 import { SearchPage } from '../pages/public/SearchPage';
 import { RestaurantDetailPage } from '../pages/public/RestaurantDetailPage';
+
+import { LoginPage } from '../pages/auth/LoginPage';
+import { RegisterPage } from '../pages/auth/RegisterPage';
+import { ForgotPasswordPage } from '../pages/auth/ForgotPasswordPage';
+import { ResetPasswordPage } from '../pages/auth/ResetPasswordPage';
+import { VerifyEmailPage } from '../pages/auth/VerifyEmailPage';
+import { UnauthorizedPage } from '../pages/auth/UnauthorizedPage';
+
 import { CheckoutPage } from '../pages/customer/CheckoutPage';
 import { OrderSuccessPage } from '../pages/customer/OrderSuccessPage';
 import { OrderTrackingPage } from '../pages/customer/OrderTrackingPage';
@@ -25,6 +34,20 @@ export const router = createBrowserRouter([
       { index: true, element: <LandingPage /> },
       { path: 'search', element: <SearchPage /> },
       { path: 'restaurant/:id', element: <RestaurantDetailPage /> },
+
+      {
+        element: <GuestRoute />,
+        children: [
+          { path: 'login', element: <LoginPage /> },
+          { path: 'register', element: <RegisterPage /> },
+          { path: 'forgot-password', element: <ForgotPasswordPage /> },
+          { path: 'reset-password', element: <ResetPasswordPage /> },
+          { path: 'verify-email', element: <VerifyEmailPage /> },
+        ],
+      },
+
+      { path: 'unauthorized', element: <UnauthorizedPage /> },
+
       {
         element: <ProtectedRoute />,
         children: [

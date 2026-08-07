@@ -22,6 +22,36 @@ export class UserRepository {
     await User.findByIdAndUpdate(userId, { refreshTokenHash: hash });
   }
 
+  async setVerificationOTP(userId: string, otp: string, expiresAt: Date): Promise<void> {
+    await User.findByIdAndUpdate(userId, {
+      verificationOTP: otp,
+      verificationOTPExpires: expiresAt,
+    });
+  }
+
+  async setResetPasswordOTP(userId: string, otp: string, expiresAt: Date): Promise<void> {
+    await User.findByIdAndUpdate(userId, {
+      resetPasswordToken: otp,
+      resetPasswordExpires: expiresAt,
+    });
+  }
+
+  async verifyUserEmail(userId: string): Promise<void> {
+    await User.findByIdAndUpdate(userId, {
+      isVerified: true,
+      verificationOTP: undefined,
+      verificationOTPExpires: undefined,
+    });
+  }
+
+  async updatePassword(userId: string, newPasswordHash: string): Promise<void> {
+    await User.findByIdAndUpdate(userId, {
+      passwordHash: newPasswordHash,
+      resetPasswordToken: undefined,
+      resetPasswordExpires: undefined,
+    });
+  }
+
   async addAddress(userId: string, address: IAddress): Promise<IUserDocument | null> {
     const user = await User.findById(userId);
     if (!user) return null;
