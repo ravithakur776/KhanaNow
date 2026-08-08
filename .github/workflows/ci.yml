@@ -26,16 +26,23 @@ jobs:
 
       - name: Server Type Check
         working-directory: ./server
-        run: npx tsc --noEmit
+        run: npm run typecheck
 
       - name: Run Backend Test Suite
         working-directory: ./server
-        run: npx tsx src/utils/production.test.ts
+        run: npm test
         env:
           NODE_ENV: test
           MONGODB_URI: mongodb://localhost:27017/khananow_test
-          JWT_SECRET: test_jwt_secret_for_ci_pipeline_12345
-          RAZORPAY_KEY_SECRET: test_razorpay_secret
+          JWT_ACCESS_SECRET: test_jwt_access_secret_for_ci_pipeline_12345
+          JWT_REFRESH_SECRET: test_jwt_refresh_secret_for_ci_pipeline_67890
+          RAZORPAY_KEY_ID: rzp_test_ci_mock_id
+          RAZORPAY_KEY_SECRET: test_razorpay_secret_key_ci
+          RAZORPAY_WEBHOOK_SECRET: test_razorpay_webhook_secret_ci
+
+      - name: Server Production Build
+        working-directory: ./server
+        run: npm run build
 
   validate-frontend:
     runs-on: ubuntu-latest
@@ -54,6 +61,10 @@ jobs:
         working-directory: ./client
         run: npm ci
 
-      - name: Client Type Check & Production Build
+      - name: Client Type Check
+        working-directory: ./client
+        run: npm run typecheck
+
+      - name: Client Production Build
         working-directory: ./client
         run: npm run build

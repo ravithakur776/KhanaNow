@@ -21,7 +21,7 @@ export interface CartItem {
   selectedOptions?: CartItemOption[];
 }
 
-interface CartState {
+export interface CartState {
   items: CartItem[];
   restaurantId: string | null;
   restaurantName: string | null;
@@ -58,7 +58,7 @@ export const useCartStore = create<CartState>()(
       pendingItem: null,
       isSwitchModalOpen: false,
 
-      addItem: (newItem) => {
+      addItem: (newItem: Omit<CartItem, 'cartItemId'>) => {
         const state = get();
 
         // If items exist from another restaurant, open modal instead of window.confirm
@@ -76,7 +76,7 @@ export const useCartStore = create<CartState>()(
         const cartItemId = `${newItem.foodId}_${optionsHash}`;
 
         const currentItems = get().items;
-        const existingIndex = currentItems.findIndex((i) => i.cartItemId === cartItemId);
+        const existingIndex = currentItems.findIndex((i: CartItem) => i.cartItemId === cartItemId);
 
         let updatedItems: CartItem[];
         if (existingIndex > -1) {
@@ -123,8 +123,8 @@ export const useCartStore = create<CartState>()(
         });
       },
 
-      removeItem: (cartItemId) => {
-        const updated = get().items.filter((i) => i.cartItemId !== cartItemId);
+      removeItem: (cartItemId: string) => {
+        const updated = get().items.filter((i: CartItem) => i.cartItemId !== cartItemId);
         set({
           items: updated,
           ...(updated.length === 0 && {
@@ -136,17 +136,17 @@ export const useCartStore = create<CartState>()(
         });
       },
 
-      updateQuantity: (cartItemId, delta) => {
+      updateQuantity: (cartItemId: string, delta: number) => {
         const items = get().items;
         const updated = items
-          .map((item) => {
+          .map((item: CartItem): CartItem | null => {
             if (item.cartItemId === cartItemId) {
               const newQty = item.quantity + delta;
               return newQty > 0 ? { ...item, quantity: newQty } : null;
             }
             return item;
           })
-          .filter(Boolean) as CartItem[];
+          .filter((item: CartItem | null): item is CartItem => item !== null);
 
         set({
           items: updated,
@@ -159,9 +159,9 @@ export const useCartStore = create<CartState>()(
         });
       },
 
-      setTip: (tip) => set({ tipAmount: Math.max(0, tip) }),
+      setTip: (tip: number) => set({ tipAmount: Math.max(0, tip) }),
 
-      applyCoupon: (code, discount) =>
+      applyCoupon: (code: string, discount: number) =>
         set({ couponCode: code.toUpperCase(), discountAmount: Math.max(0, discount) }),
 
       removeCoupon: () => set({ couponCode: null, discountAmount: 0 }),
@@ -177,12 +177,12 @@ export const useCartStore = create<CartState>()(
           isSwitchModalOpen: false,
         }),
 
-      getItemCount: () => get().items.reduce((sum, item) => sum + item.quantity, 0),
+      getItemCount: () => get().items.reduce((sum: number, item: CartItem) => sum + item.quantity, 0),
 
       getItemTotal: () =>
-        get().items.reduce((sum, item) => {
+        get().items.reduce((sum: number, item: CartItem) => {
           const optionsCost =
-            item.selectedOptions?.reduce((optSum, opt) => optSum + opt.price, 0) || 0;
+            item.selectedOptions?.reduce((optSum: number, opt: CartItemOption) => optSum + opt.price, 0) || 0;
           return sum + (item.price + optionsCost) * item.quantity;
         }, 0),
 

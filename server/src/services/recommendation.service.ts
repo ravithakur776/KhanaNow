@@ -253,6 +253,40 @@ export class RuleBasedRecommendationProvider implements RecommendationProvider {
   }
 
   async getTrendingFoods() {
+    // Aggregate top ordered food items in the last 30 days
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const recentAgg = await Order.aggregate([
+      { $match: { createdAt: { $gte: thirtyDaysAgo }, status: { $ne: 'CANCELLED' } } },
+      { $unwind: '$items' },
+      { $group: { _id: '$items.foodId', orderCount: { $sum: '$items.quantity' } } },
+      { $sort: { orderCount: -1 } },
+      { $limit: 8 },
+    ]);
+
+    const topFoodIds = recentAgg
+      .map((r) => {
+        try {
+          return new mongoose.Types.ObjectId(r._id);
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean);
+
+    if (topFoodIds.length > 0) {
+      const trendingFromOrders = await Food.find({
+        _id: { $in: topFoodIds },
+        isAvailable: true,
+        isDeleted: { $ne: true },
+      })
+        .populate('restaurantId', 'name avgRating deliveryTimeMinutes')
+        .lean();
+
+      if (trendingFromOrders.length > 0) {
+        return trendingFromOrders;
+      }
+    }
+
     return Food.find({ isAvailable: true, isDeleted: { $ne: true } })
       .populate('restaurantId', 'name avgRating deliveryTimeMinutes')
       .sort({ isBestseller: -1, isRecommended: -1, createdAt: -1 })

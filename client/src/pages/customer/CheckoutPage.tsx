@@ -336,8 +336,15 @@ export const CheckoutPage: React.FC = () => {
             return;
           }
 
+          const razorpayKey = orderData.razorpayKeyId || (import.meta as any).env?.VITE_RAZORPAY_KEY_ID;
+          if (!razorpayKey) {
+            setPaymentProcessingStatus(null);
+            alert('Razorpay Key configuration missing from gateway.');
+            return;
+          }
+
           const options: any = {
-            key: orderData.razorpayKeyId || (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || 'rzp_test_mockKey12345',
+            key: razorpayKey,
             amount: orderData.amount,
             currency: orderData.currency || 'INR',
             name: 'KhanaNow',

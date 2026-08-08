@@ -14,11 +14,7 @@ class AuthController {
     async register(req, res, next) {
         try {
             const result = await auth_service_js_1.authService.register(req.body);
-            res.cookie('refreshToken', result.refreshToken, COOKIE_OPTIONS);
-            (0, apiResponse_js_1.sendResponse)(res, 201, 'User registered successfully', {
-                user: result.user,
-                accessToken: result.accessToken,
-            });
+            (0, apiResponse_js_1.sendResponse)(res, 201, result.message, { user: result.user });
         }
         catch (error) {
             next(error);
@@ -32,6 +28,46 @@ class AuthController {
                 user: result.user,
                 accessToken: result.accessToken,
             });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
+    async verifyEmail(req, res, next) {
+        try {
+            const { email, otp } = req.body;
+            const result = await auth_service_js_1.authService.verifyEmail(email, otp);
+            (0, apiResponse_js_1.sendResponse)(res, 200, result.message);
+        }
+        catch (error) {
+            next(error);
+        }
+    }
+    async resendVerification(req, res, next) {
+        try {
+            const { email } = req.body;
+            const result = await auth_service_js_1.authService.resendVerification(email);
+            (0, apiResponse_js_1.sendResponse)(res, 200, result.message);
+        }
+        catch (error) {
+            next(error);
+        }
+    }
+    async forgotPassword(req, res, next) {
+        try {
+            const { email } = req.body;
+            const result = await auth_service_js_1.authService.forgotPassword(email);
+            (0, apiResponse_js_1.sendResponse)(res, 200, result.message);
+        }
+        catch (error) {
+            next(error);
+        }
+    }
+    async resetPassword(req, res, next) {
+        try {
+            const { email, otp, newPassword } = req.body;
+            const result = await auth_service_js_1.authService.resetPassword(email, otp, newPassword);
+            (0, apiResponse_js_1.sendResponse)(res, 200, result.message);
         }
         catch (error) {
             next(error);
