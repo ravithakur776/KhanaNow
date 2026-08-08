@@ -27,6 +27,8 @@ import { OrderTrackingPage } from '../pages/customer/OrderTrackingPage';
 import { OrderHistoryPage } from '../pages/customer/OrderHistoryPage';
 import { RestaurantDashboard } from '../pages/restaurant-owner/RestaurantDashboard';
 import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage';
+import { PaymentSuccessPage } from '../pages/customer/PaymentSuccessPage';
+import { PaymentFailedPage } from '../pages/customer/PaymentFailedPage';
 import { NotFoundPage } from '../pages/public/NotFoundPage';
 
 export const router = createBrowserRouter([
@@ -39,6 +41,7 @@ export const router = createBrowserRouter([
       { path: 'search', element: <SearchPage /> },
       { path: 'cart', element: <CartPage /> },
       { path: 'restaurant/:id', element: <RestaurantDetailPage /> },
+      { path: 'payment/failed', element: <PaymentFailedPage /> },
 
       {
         element: <GuestRoute />,
@@ -58,6 +61,7 @@ export const router = createBrowserRouter([
         children: [
           { path: 'favorites', element: <FavoritesPage /> },
           { path: 'orders', element: <OrderHistoryPage /> },
+          { path: 'payment/success', element: <PaymentSuccessPage /> },
           { path: 'order-success/:orderId', element: <OrderSuccessPage /> },
           { path: 'track-order/:orderId', element: <OrderTrackingPage /> },
         ],
