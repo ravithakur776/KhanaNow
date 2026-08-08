@@ -1,0 +1,17 @@
+{
+  "name": "KhanaNow — Ultra-Fast Food Delivery",
+  "short_name": "KhanaNow",
+  "description": "Hyper-local premium food delivery from certified kitchens to your doorstep in 20-30 minutes.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c0c0e",
+  "theme_color": "#ff6600",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

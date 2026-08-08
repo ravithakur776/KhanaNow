@@ -33,6 +33,7 @@ import {
   useRestaurantCreateCoupon,
   useRestaurantReviews,
 } from '../../services/restaurantOwnerService';
+import { useCategories } from '../../services/restaurantService';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -60,6 +61,10 @@ export const RestaurantDashboard: React.FC = () => {
   const toggleAvailabilityMutation = useRestaurantToggleFoodAvailability();
   const deleteFoodMutation = useRestaurantDeleteFood();
 
+  // Categories query
+  const { data: categoriesData } = useCategories();
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+
   // Add Dish state
   const [isAddFoodOpen, setIsAddFoodOpen] = useState(false);
   const [foodName, setFoodName] = useState('');
@@ -78,13 +83,16 @@ export const RestaurantDashboard: React.FC = () => {
   const handleAddFood = (e: React.FormEvent) => {
     e.preventDefault();
     if (!foodName) return;
+
+    const catId = selectedCategoryId || (categoriesData?.[0]?._id as string) || '';
+
     createFoodMutation.mutate(
       {
         name: foodName,
         description: foodDesc || 'Freshly prepared signature specialty.',
         price: Number(foodPrice),
         imageUrl: foodImg,
-        categoryId: '65f123456789012345678901',
+        categoryId: catId,
         dietaryType: foodDiet,
         spiceLevel: 'medium',
         preparationTimeMinutes: 20,
@@ -438,6 +446,21 @@ export const RestaurantDashboard: React.FC = () => {
                       value={foodDesc}
                       onChange={(e) => setFoodDesc(e.target.value)}
                     />
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-muted-foreground">Dish Category</label>
+                      <select
+                        value={selectedCategoryId}
+                        onChange={(e) => setSelectedCategoryId(e.target.value)}
+                        className="w-full h-10 px-3 rounded-xl border border-border bg-card text-xs text-foreground"
+                      >
+                        {categoriesData?.map((cat: any) => (
+                          <option key={cat._id} value={cat._id}>
+                            {cat.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-3">
                       <Input
                         label="Price in ₹"

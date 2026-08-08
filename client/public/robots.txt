@@ -1,0 +1,15 @@
+# KhanaNow Production Robots Configuration
+User-agent: *
+Allow: /
+Allow: /home
+Allow: /search
+Allow: /restaurant/
+Disallow: /admin/
+Disallow: /restaurant
+Disallow: /merchant/
+Disallow: /orders/
+Disallow: /checkout/
+Disallow: /notifications/
+Disallow: /payment/
+
+Sitemap: https://khananow.com/sitemap.xml
