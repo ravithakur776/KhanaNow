@@ -31,6 +31,8 @@ import { PaymentSuccessPage } from '../pages/customer/PaymentSuccessPage';
 import { PaymentFailedPage } from '../pages/customer/PaymentFailedPage';
 import { NotFoundPage } from '../pages/public/NotFoundPage';
 
+import { OrderDetailsPage } from '../pages/customer/OrderDetailsPage';
+
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -61,6 +63,8 @@ export const router = createBrowserRouter([
         children: [
           { path: 'favorites', element: <FavoritesPage /> },
           { path: 'orders', element: <OrderHistoryPage /> },
+          { path: 'orders/:orderNumber', element: <OrderDetailsPage /> },
+          { path: 'orders/:orderId/track', element: <OrderTrackingPage /> },
           { path: 'payment/success', element: <PaymentSuccessPage /> },
           { path: 'order-success/:orderId', element: <OrderSuccessPage /> },
           { path: 'track-order/:orderId', element: <OrderTrackingPage /> },

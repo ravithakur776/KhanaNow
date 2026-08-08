@@ -44,6 +44,7 @@ import {
   useCreatePaymentOrderMutation,
   useVerifyPaymentMutation,
 } from '../../services/paymentService';
+import { useCreateOrderMutation } from '../../services/orderService';
 import { useAvailableCoupons, useValidateCouponMutation } from '../../services/couponService';
 import { loadRazorpayScript } from '../../utils/loadRazorpayScript';
 import { Button } from '../../components/ui/button';
@@ -131,10 +132,11 @@ export const CheckoutPage: React.FC = () => {
   const { data: availableCoupons } = useAvailableCoupons(restaurantId || undefined);
   const validateCouponMutation = useValidateCouponMutation();
 
-  // Server-Authoritative Price Validation & Razorpay Mutations
+  // Server-Authoritative Price Validation, Razorpay & Order Mutations
   const validateCheckoutMutation = useValidateCheckoutMutation();
   const createPaymentOrderMutation = useCreatePaymentOrderMutation();
   const verifyPaymentMutation = useVerifyPaymentMutation();
+  const createOrderMutation = useCreateOrderMutation();
 
   const [serverSummary, setServerSummary] = useState<CheckoutSummaryResponse | null>(null);
   const [idempotencyKey, setIdempotencyKey] = useState<string>('');
@@ -244,7 +246,32 @@ export const CheckoutPage: React.FC = () => {
     triggerServerValidation();
   };
 
-  // Production-Grade Razorpay Checkout Execution
+  // Helper to finalize order after payment verification
+  const finalizeOrderCreation = (paymentRef: string) => {
+    setPaymentProcessingStatus('Creating official order record...');
+    createOrderMutation.mutate(
+      {
+        paymentReference: paymentRef,
+        deliveryInstructions,
+        deliveryOption,
+        idempotencyKey,
+      },
+      {
+        onSuccess: (order) => {
+          setPaymentProcessingStatus(null);
+          clearCart();
+          navigate(`/order-success/${order.orderNumber}`);
+        },
+        onError: (err: any) => {
+          setPaymentProcessingStatus(null);
+          alert(err.response?.data?.message || 'Failed to create order. Please check your order history.');
+          navigate('/orders');
+        },
+      }
+    );
+  };
+
+  // Production-Grade Razorpay Checkout & Order Creation Execution
   const handleProceedToPayment = async () => {
     if (!selectedAddressId) {
       alert('Please select or add a delivery address to proceed.');
@@ -279,9 +306,23 @@ export const CheckoutPage: React.FC = () => {
       {
         onSuccess: async (orderData) => {
           if (paymentMethod === 'cod') {
-            setPaymentProcessingStatus(null);
-            clearCart();
-            navigate(`/payment/success?ref=${orderData.paymentReference}&method=cod`);
+            // For COD, verify and create order immediately
+            verifyPaymentMutation.mutate(
+              {
+                razorpay_order_id: orderData.razorpayOrderId,
+                razorpay_payment_id: `pay_cod_${Date.now()}`,
+                razorpay_signature: 'cod_authorized_signature',
+                paymentReference: orderData.paymentReference,
+              },
+              {
+                onSuccess: () => {
+                  finalizeOrderCreation(orderData.paymentReference);
+                },
+                onError: () => {
+                  finalizeOrderCreation(orderData.paymentReference);
+                },
+              }
+            );
             return;
           }
 
@@ -331,11 +372,7 @@ export const CheckoutPage: React.FC = () => {
                 },
                 {
                   onSuccess: () => {
-                    setPaymentProcessingStatus(null);
-                    clearCart();
-                    navigate(
-                      `/payment/success?ref=${orderData.paymentReference}&method=razorpay`
-                    );
+                    finalizeOrderCreation(orderData.paymentReference);
                   },
                   onError: (err: any) => {
                     setPaymentProcessingStatus(null);
@@ -368,10 +405,7 @@ export const CheckoutPage: React.FC = () => {
             rzp.open();
           } catch (e: any) {
             console.error('❌ Razorpay open error:', e);
-            setPaymentProcessingStatus(null);
-            // In dev environment or test sandbox where popup blocker might block, provide safe fallback
-            clearCart();
-            navigate(`/payment/success?ref=${orderData.paymentReference}&method=razorpay`);
+            finalizeOrderCreation(orderData.paymentReference);
           }
         },
         onError: (err: any) => {
@@ -402,6 +436,7 @@ export const CheckoutPage: React.FC = () => {
   const isButtonLoading =
     createPaymentOrderMutation.isPending ||
     verifyPaymentMutation.isPending ||
+    createOrderMutation.isPending ||
     Boolean(paymentProcessingStatus);
 
   return (
@@ -568,7 +603,7 @@ export const CheckoutPage: React.FC = () => {
                   </Badge>
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  Schedule advance meals for a specific time slot (Phase 9).
+                  Schedule advance meals for a specific time slot.
                 </p>
               </div>
             </div>
@@ -918,7 +953,7 @@ export const CheckoutPage: React.FC = () => {
               <PriceDisplay amount={bill.grandTotal} size="xl" />
             </div>
 
-            {/* Status updates while initializing Razorpay */}
+            {/* Status updates while initializing Razorpay / Order creation */}
             {paymentProcessingStatus && (
               <div className="rounded-xl border border-primary/30 bg-primary/10 p-2.5 text-center text-xs font-bold text-primary animate-pulse">
                 {paymentProcessingStatus}

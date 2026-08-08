@@ -13,6 +13,7 @@ export type PaymentStatus =
 export interface IPaymentDocument extends Document {
   userId: mongoose.Types.ObjectId;
   restaurantId: mongoose.Types.ObjectId;
+  orderId?: mongoose.Types.ObjectId;
   amount: number; // in paise (integer)
   currency: string;
   status: PaymentStatus;
@@ -43,6 +44,7 @@ const PaymentSchema = new Schema<IPaymentDocument>(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     restaurantId: { type: Schema.Types.ObjectId, ref: 'Restaurant', required: true },
+    orderId: { type: Schema.Types.ObjectId, ref: 'Order', sparse: true, index: true },
     amount: { type: Number, required: true, min: 100 }, // in paise (min ₹1)
     currency: { type: String, default: 'INR', uppercase: true, trim: true },
     status: {

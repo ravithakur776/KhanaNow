@@ -23,3 +23,13 @@ export const authenticate = (
     return next(new ApiError(401, 'Invalid or expired access token', 'TOKEN_EXPIRED'));
   }
 };
+
+export const authorizeRoles = (...roles: string[]) => {
+  return (req: Request, _res: Response, next: NextFunction): void => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return next(new ApiError(403, 'Forbidden: You do not have permission to perform this action', 'FORBIDDEN'));
+    }
+    next();
+  };
+};
+
