@@ -11,6 +11,7 @@ import { LandingPage } from '../pages/public/LandingPage';
 import { HomePage } from '../pages/customer/HomePage';
 import { SearchPage } from '../pages/public/SearchPage';
 import { RestaurantDetailPage } from '../pages/public/RestaurantDetailPage';
+import { CartPage } from '../pages/customer/CartPage';
 
 import { LoginPage } from '../pages/auth/LoginPage';
 import { RegisterPage } from '../pages/auth/RegisterPage';
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
       { index: true, element: <LandingPage /> },
       { path: 'home', element: <HomePage /> },
       { path: 'search', element: <SearchPage /> },
+      { path: 'cart', element: <CartPage /> },
       { path: 'restaurant/:id', element: <RestaurantDetailPage /> },
 
       {

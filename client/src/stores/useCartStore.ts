@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { calculateOrderPricing, PricingBreakdown } from '../utils/pricing';
 
 export interface CartItemOption {
   groupName: string;
@@ -8,7 +9,7 @@ export interface CartItemOption {
 }
 
 export interface CartItem {
-  cartItemId: string; // Unique hash: foodId + JSON.stringify(options)
+  cartItemId: string; // Unique deterministic hash: foodId + JSON.stringify(options)
   foodId: string;
   name: string;
   imageUrl: string;
@@ -27,7 +28,13 @@ interface CartState {
   tipAmount: number;
   couponCode: string | null;
   discountAmount: number;
+  pendingItem: Omit<CartItem, 'cartItemId'> | null;
+  isSwitchModalOpen: boolean;
+
+  // Actions
   addItem: (item: Omit<CartItem, 'cartItemId'>) => void;
+  confirmRestaurantSwitch: () => void;
+  cancelRestaurantSwitch: () => void;
   removeItem: (cartItemId: string) => void;
   updateQuantity: (cartItemId: string, delta: number) => void;
   setTip: (tip: number) => void;
@@ -36,15 +43,7 @@ interface CartState {
   clearCart: () => void;
   getItemCount: () => number;
   getItemTotal: () => number;
-  getBillSummary: () => {
-    itemTotal: number;
-    deliveryFee: number;
-    platformFee: number;
-    discountAmount: number;
-    taxAmount: number;
-    tipAmount: number;
-    grandTotal: number;
-  };
+  getBillSummary: () => PricingBreakdown;
 }
 
 export const useCartStore = create<CartState>()(
@@ -56,45 +55,35 @@ export const useCartStore = create<CartState>()(
       tipAmount: 30, // Default driver tip ₹30
       couponCode: null,
       discountAmount: 0,
+      pendingItem: null,
+      isSwitchModalOpen: false,
 
       addItem: (newItem) => {
         const state = get();
 
-        // If adding from a different restaurant, confirm or reset cart
-        if (state.restaurantId && state.restaurantId !== newItem.restaurantId) {
-          if (
-            !window.confirm(
-              `Your cart contains dishes from "${state.restaurantName}". Replace with dishes from "${newItem.restaurantName}"?`
-            )
-          ) {
-            return;
-          }
+        // If items exist from another restaurant, open modal instead of window.confirm
+        if (state.restaurantId && state.items.length > 0 && state.restaurantId !== newItem.restaurantId) {
           set({
-            items: [],
-            restaurantId: newItem.restaurantId,
-            restaurantName: newItem.restaurantName,
+            pendingItem: newItem,
+            isSwitchModalOpen: true,
           });
+          return;
         }
 
-        const optionsHash = newItem.selectedOptions
+        const optionsHash = newItem.selectedOptions && newItem.selectedOptions.length > 0
           ? JSON.stringify(newItem.selectedOptions)
           : '';
         const cartItemId = `${newItem.foodId}_${optionsHash}`;
 
         const currentItems = get().items;
-        const existingIndex = currentItems.findIndex(
-          (i) => i.cartItemId === cartItemId
-        );
+        const existingIndex = currentItems.findIndex((i) => i.cartItemId === cartItemId);
 
         let updatedItems: CartItem[];
         if (existingIndex > -1) {
           updatedItems = [...currentItems];
           updatedItems[existingIndex].quantity += newItem.quantity;
         } else {
-          updatedItems = [
-            ...currentItems,
-            { ...newItem, cartItemId },
-          ];
+          updatedItems = [...currentItems, { ...newItem, cartItemId }];
         }
 
         set({
@@ -104,11 +93,46 @@ export const useCartStore = create<CartState>()(
         });
       },
 
+      confirmRestaurantSwitch: () => {
+        const { pendingItem } = get();
+        if (!pendingItem) {
+          set({ isSwitchModalOpen: false, pendingItem: null });
+          return;
+        }
+
+        const optionsHash = pendingItem.selectedOptions && pendingItem.selectedOptions.length > 0
+          ? JSON.stringify(pendingItem.selectedOptions)
+          : '';
+        const cartItemId = `${pendingItem.foodId}_${optionsHash}`;
+
+        set({
+          items: [{ ...pendingItem, cartItemId }],
+          restaurantId: pendingItem.restaurantId,
+          restaurantName: pendingItem.restaurantName,
+          couponCode: null,
+          discountAmount: 0,
+          pendingItem: null,
+          isSwitchModalOpen: false,
+        });
+      },
+
+      cancelRestaurantSwitch: () => {
+        set({
+          pendingItem: null,
+          isSwitchModalOpen: false,
+        });
+      },
+
       removeItem: (cartItemId) => {
         const updated = get().items.filter((i) => i.cartItemId !== cartItemId);
         set({
           items: updated,
-          ...(updated.length === 0 && { restaurantId: null, restaurantName: null }),
+          ...(updated.length === 0 && {
+            restaurantId: null,
+            restaurantName: null,
+            couponCode: null,
+            discountAmount: 0,
+          }),
         });
       },
 
@@ -126,13 +150,19 @@ export const useCartStore = create<CartState>()(
 
         set({
           items: updated,
-          ...(updated.length === 0 && { restaurantId: null, restaurantName: null }),
+          ...(updated.length === 0 && {
+            restaurantId: null,
+            restaurantName: null,
+            couponCode: null,
+            discountAmount: 0,
+          }),
         });
       },
 
-      setTip: (tip) => set({ tipAmount: tip }),
+      setTip: (tip) => set({ tipAmount: Math.max(0, tip) }),
 
-      applyCoupon: (code, discount) => set({ couponCode: code, discountAmount: discount }),
+      applyCoupon: (code, discount) =>
+        set({ couponCode: code.toUpperCase(), discountAmount: Math.max(0, discount) }),
 
       removeCoupon: () => set({ couponCode: null, discountAmount: 0 }),
 
@@ -143,6 +173,8 @@ export const useCartStore = create<CartState>()(
           restaurantName: null,
           couponCode: null,
           discountAmount: 0,
+          pendingItem: null,
+          isSwitchModalOpen: false,
         }),
 
       getItemCount: () => get().items.reduce((sum, item) => sum + item.quantity, 0),
@@ -155,40 +187,13 @@ export const useCartStore = create<CartState>()(
         }, 0),
 
       getBillSummary: () => {
-        const itemTotal = get().getItemTotal();
-        if (itemTotal === 0) {
-          return {
-            itemTotal: 0,
-            deliveryFee: 0,
-            platformFee: 0,
-            discountAmount: 0,
-            taxAmount: 0,
-            tipAmount: 0,
-            grandTotal: 0,
-          };
-        }
-
-        const deliveryFee = itemTotal > 500 ? 0 : 35; // Free delivery above ₹500
-        const platformFee = 6;
-        const discountAmount = get().discountAmount;
-        const taxableAmount = Math.max(0, itemTotal - discountAmount);
-        const taxAmount = Math.round(taxableAmount * 0.05); // 5% GST on food
-        const tipAmount = get().tipAmount;
-
-        const grandTotal = Math.max(
-          0,
-          itemTotal + deliveryFee + platformFee + taxAmount + tipAmount - discountAmount
-        );
-
-        return {
+        const state = get();
+        const itemTotal = state.getItemTotal();
+        return calculateOrderPricing({
           itemTotal,
-          deliveryFee,
-          platformFee,
-          discountAmount,
-          taxAmount,
-          tipAmount,
-          grandTotal,
-        };
+          discountAmount: state.discountAmount,
+          tipAmount: state.tipAmount,
+        });
       },
     }),
     {

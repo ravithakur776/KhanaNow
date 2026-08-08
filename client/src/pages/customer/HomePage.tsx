@@ -18,6 +18,7 @@ import { useAuthStore } from '../../stores/useAuthStore';
 import { useLocationStore } from '../../stores/useLocationStore';
 import { useUIStore } from '../../stores/useUIStore';
 import { useRestaurants, useCategories } from '../../services/restaurantService';
+import { useToggleFavorite } from '../../services/favoriteService';
 import { Display, Heading, Text } from '../../components/ui/typography';
 import { Container } from '../../components/layout/Container';
 import { Section } from '../../components/layout/Section';
@@ -42,11 +43,14 @@ export const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuthStore();
   const { currentLocation } = useLocationStore();
-  const { openLocationDrawer } = useUIStore();
+  const { openLocationDrawer, openAuthModal } = useUIStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedFoodModal, setSelectedFoodModal] = useState<FoodItemDetail | null>(null);
+
+  const toggleFavoriteMutation = useToggleFavorite();
+  const [favMap, setFavMap] = useState<Record<string, boolean>>({});
 
   const { data: restaurantResponse, isLoading: isLoadingRestaurants } = useRestaurants({
     search: searchQuery,
@@ -54,7 +58,6 @@ export const HomePage: React.FC = () => {
   });
 
   const { data: categoriesData } = useCategories();
-
   const restaurants = restaurantResponse?.data || [];
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -62,6 +65,28 @@ export const HomePage: React.FC = () => {
     if (searchQuery.trim()) {
       navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
     }
+  };
+
+  const handleToggleFavorite = (e: React.MouseEvent, restId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!isAuthenticated) {
+      openAuthModal('login');
+      return;
+    }
+
+    const nextState = !favMap[restId];
+    setFavMap((prev) => ({ ...prev, [restId]: nextState }));
+
+    toggleFavoriteMutation.mutate(
+      { restaurantId: restId },
+      {
+        onError: () => {
+          setFavMap((prev) => ({ ...prev, [restId]: !nextState }));
+        },
+      }
+    );
   };
 
   return (
@@ -73,7 +98,7 @@ export const HomePage: React.FC = () => {
             <HStack justify="between" align="center" className="w-full">
               <div>
                 <Text variant="caption" weight="bold" className="text-primary uppercase tracking-widest">
-                  {isAuthenticated ? `Welcome back, ${user?.firstName}! 👋` : 'Deliver to your doorstep 🚀'}
+                  {isAuthenticated ? `Welcome back, ${user?.firstName || user?.name || 'Foodie'}! 👋` : 'Deliver to your doorstep 🚀'}
                 </Text>
                 <Heading level="h2">
                   {isAuthenticated ? 'What are you craving for lunch?' : 'Order Food Smarter & Faster'}
@@ -193,49 +218,64 @@ export const HomePage: React.FC = () => {
             </Grid>
           ) : (
             <Grid cols={4} gap="md">
-              {restaurants.map((rest: any) => (
-                <Card key={rest._id || rest.id} className="overflow-hidden group cursor-pointer border-border hover:border-primary/40">
-                  <Link to={`/restaurant/${rest._id || rest.id}`}>
-                    <div className="relative h-44 w-full overflow-hidden bg-card">
-                      <img
-                        src={rest.bannerImageUrl || 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=800&auto=format&fit=crop&q=80'}
-                        alt={rest.name}
-                        className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                      <div className="absolute top-3 left-3">
-                        <Badge variant={rest.isPureVeg ? 'veg' : 'nonveg'} className="font-bold">
-                          {rest.isPureVeg ? '100% PURE VEG' : 'VEG & NON-VEG'}
-                        </Badge>
-                      </div>
-                      {rest.offerBadge && (
-                        <div className="absolute bottom-3 left-3 bg-primary text-white text-xs font-black px-2.5 py-1 rounded-lg">
-                          {rest.offerBadge}
+              {restaurants.map((rest: any) => {
+                const restId = rest._id || rest.id;
+                const isFav = favMap[restId] || false;
+
+                return (
+                  <Card key={restId} className="overflow-hidden group cursor-pointer border-border hover:border-primary/40 relative">
+                    <Link to={`/restaurant/${restId}`}>
+                      <div className="relative h-44 w-full overflow-hidden bg-card">
+                        <img
+                          src={rest.bannerImageUrl || 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=800&auto=format&fit=crop&q=80'}
+                          alt={rest.name}
+                          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                        <div className="absolute top-3 left-3">
+                          <Badge variant={rest.isPureVeg ? 'veg' : 'nonveg'} className="font-bold">
+                            {rest.isPureVeg ? '100% PURE VEG' : 'VEG & NON-VEG'}
+                          </Badge>
                         </div>
-                      )}
-                    </div>
 
-                    <div className="p-5 space-y-3">
-                      <HStack justify="between" align="start">
-                        <Heading level="h4" className="truncate group-hover:text-primary transition-colors">
-                          {rest.name}
-                        </Heading>
-                        <RatingStars rating={rest.avgRating || 4.8} size="sm" />
-                      </HStack>
+                        {/* Heart Favorite Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleToggleFavorite(e, restId)}
+                          className="absolute top-3 right-3 rounded-full bg-card/80 backdrop-blur-md p-2 text-muted-foreground hover:text-rose-500 transition-all active:scale-90"
+                        >
+                          <Heart className={`h-4 w-4 ${isFav ? 'fill-rose-500 text-rose-500' : ''}`} />
+                        </button>
 
-                      <Text variant="small" className="truncate">
-                        {rest.cuisines?.join(', ') || 'Multi-Cuisine'}
-                      </Text>
+                        {rest.offerBadge && (
+                          <div className="absolute bottom-3 left-3 bg-primary text-white text-xs font-black px-2.5 py-1 rounded-lg">
+                            {rest.offerBadge}
+                          </div>
+                        )}
+                      </div>
 
-                      <HStack justify="between" align="center" className="border-t border-border/60 pt-3 text-xs text-muted-foreground font-semibold">
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3.5 w-3.5 text-primary" /> {rest.deliveryTimeMinutes?.min || 20}-{rest.deliveryTimeMinutes?.max || 30} mins
-                        </span>
-                        <span>₹{rest.costForTwo} for two</span>
-                      </HStack>
-                    </div>
-                  </Link>
-                </Card>
-              ))}
+                      <div className="p-5 space-y-3">
+                        <HStack justify="between" align="start">
+                          <Heading level="h4" className="truncate group-hover:text-primary transition-colors">
+                            {rest.name}
+                          </Heading>
+                          <RatingStars rating={rest.avgRating || 4.8} size="sm" />
+                        </HStack>
+
+                        <Text variant="small" className="truncate">
+                          {rest.cuisines?.join(', ') || 'Multi-Cuisine'}
+                        </Text>
+
+                        <HStack justify="between" align="center" className="border-t border-border/60 pt-3 text-xs text-muted-foreground font-semibold">
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3.5 w-3.5 text-primary" /> {rest.deliveryTimeMinutes?.min || 20}-{rest.deliveryTimeMinutes?.max || 30} mins
+                          </span>
+                          <span>₹{rest.costForTwo} for two</span>
+                        </HStack>
+                      </div>
+                    </Link>
+                  </Card>
+                );
+              })}
             </Grid>
           )}
         </div>
