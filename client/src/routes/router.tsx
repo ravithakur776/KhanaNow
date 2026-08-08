@@ -89,7 +89,23 @@ export const router = createBrowserRouter([
     children: [
       {
         element: <DashboardLayout />,
-        children: [{ path: 'dashboard', element: <RestaurantDashboard /> }],
+        children: [
+          { index: true, element: <RestaurantDashboard /> },
+          { path: 'dashboard', element: <RestaurantDashboard /> },
+        ],
+      },
+    ],
+  },
+  {
+    path: '/restaurant',
+    element: <RoleGuard allowedRoles={['restaurant_owner', 'admin']} />,
+    children: [
+      {
+        element: <DashboardLayout />,
+        children: [
+          { index: true, element: <RestaurantDashboard /> },
+          { path: 'dashboard', element: <RestaurantDashboard /> },
+        ],
       },
     ],
   },
@@ -99,7 +115,10 @@ export const router = createBrowserRouter([
     children: [
       {
         element: <DashboardLayout />,
-        children: [{ path: 'dashboard', element: <AdminDashboardPage /> }],
+        children: [
+          { index: true, element: <AdminDashboardPage /> },
+          { path: 'dashboard', element: <AdminDashboardPage /> },
+        ],
       },
     ],
   },

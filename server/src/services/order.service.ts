@@ -1,4 +1,4 @@
-import mongoose from 'express';
+import mongoose from 'mongoose';
 import { orderRepository, OrderQueryOptions } from '../repositories/order.repository.js';
 import { paymentRepository } from '../repositories/payment.repository.js';
 import { checkoutService, CheckoutValidateDTO } from './checkout.service.js';

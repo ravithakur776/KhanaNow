@@ -22,6 +22,7 @@ export interface IUserDocument extends Document {
   phone: string;
   passwordHash: string;
   role: 'customer' | 'restaurant_owner' | 'admin' | 'delivery_partner';
+  status: 'active' | 'suspended' | 'blocked';
   avatarUrl?: string;
   isVerified: boolean;
   verificationOTP?: string;
@@ -59,6 +60,12 @@ const UserSchema = new Schema<IUserDocument>(
       type: String,
       enum: ['customer', 'restaurant_owner', 'admin', 'delivery_partner'],
       default: 'customer',
+    },
+    status: {
+      type: String,
+      enum: ['active', 'suspended', 'blocked'],
+      default: 'active',
+      index: true,
     },
     avatarUrl: { type: String },
     isVerified: { type: Boolean, default: false },

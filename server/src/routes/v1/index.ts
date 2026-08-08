@@ -7,6 +7,8 @@ import addressRoutes from './address.routes.js';
 import checkoutRoutes from './checkout.routes.js';
 import paymentRoutes from './payment.routes.js';
 import orderRoutes from './order.routes.js';
+import adminRoutes from './admin.routes.js';
+import restaurantOwnerRoutes from './restaurantOwner.routes.js';
 
 const router = Router();
 
@@ -17,6 +19,8 @@ router.use('/favorites', favoriteRoutes);
 router.use('/checkout', checkoutRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/orders', orderRoutes);
+router.use('/admin', adminRoutes);
+router.use('/restaurant', restaurantOwnerRoutes);
 router.use('/', restaurantRoutes);
 
 export default router;

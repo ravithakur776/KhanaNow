@@ -15,7 +15,7 @@ export interface IRestaurantDocument extends Document {
   distanceKm: number;
   isPureVeg: boolean;
   isOpen: boolean;
-  status: 'pending' | 'active' | 'suspended';
+  status: 'pending' | 'active' | 'suspended' | 'rejected';
   offerBadge?: string;
   fssaiLicenseNumber?: string;
   address: {
@@ -51,7 +51,7 @@ const RestaurantSchema = new Schema<IRestaurantDocument>(
     distanceKm: { type: Number, default: 2.5 },
     isPureVeg: { type: Boolean, default: false },
     isOpen: { type: Boolean, default: true },
-    status: { type: String, enum: ['pending', 'active', 'suspended'], default: 'active' },
+    status: { type: String, enum: ['pending', 'active', 'suspended', 'rejected'], default: 'pending' },
     offerBadge: { type: String },
     fssaiLicenseNumber: { type: String },
     address: {
