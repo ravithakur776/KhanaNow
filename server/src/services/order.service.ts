@@ -1,16 +1,19 @@
 import mongoose from 'mongoose';
 import { orderRepository, OrderQueryOptions } from '../repositories/order.repository.js';
 import { paymentRepository } from '../repositories/payment.repository.js';
-import { checkoutService, CheckoutValidateDTO } from './checkout.service.js';
+import { couponService } from './coupon.service.js';
 import { notificationService } from './notification.service.js';
 import { User } from '../models/user.model.js';
 import { Food } from '../models/food.model.js';
 import { Restaurant } from '../models/restaurant.model.js';
+import { Address } from '../models/address.model.js';
 import { OrderStatus, IOrderStatusHistoryEntry } from '../models/order.model.js';
+import { calculateOrderPricing } from '../utils/pricing.util.js';
 import { ApiError } from '../utils/apiError.js';
 
 export interface CreateOrderFromPaymentDTO {
   paymentReference: string;
+  addressId?: string;
   deliveryInstructions?: string;
   deliveryOption?: 'standard' | 'scheduled';
   idempotencyKey?: string;
@@ -34,7 +37,7 @@ export class OrderService {
       throw new ApiError(400, 'paymentReference is required to create an order', 'PAYMENT_REFERENCE_REQUIRED');
     }
 
-    // 1. Locate Verified Payment
+    // 1. Locate Verified Captured Payment
     const payment = await paymentRepository.findByReference(dto.paymentReference, userId);
     if (!payment) {
       throw new ApiError(404, 'Payment record not found or access denied', 'PAYMENT_NOT_FOUND');
@@ -60,22 +63,124 @@ export class OrderService {
       throw new ApiError(404, 'User account not found', 'USER_NOT_FOUND');
     }
 
-    // 4. Re-run Authoritative Checkout Verification
-    const metadata = payment.metadata || {};
+    // 4. Authoritative Restaurant Lookup from Database
     const restaurant = await Restaurant.findById(payment.restaurantId);
     if (!restaurant) {
       throw new ApiError(404, 'Restaurant not found', 'RESTAURANT_NOT_FOUND');
     }
 
-    // 5. Generate Human-Friendly Order Number (e.g. KN-20260808-8F4K2)
+    if (restaurant.status !== 'active') {
+      throw new ApiError(400, `Restaurant "${restaurant.name}" is currently suspended or inactive`, 'RESTAURANT_UNAVAILABLE');
+    }
+
+    // 5. Authoritative Address Lookup
+    const metadata = payment.metadata || {};
+    const address = dto.addressId
+      ? await Address.findOne({ _id: dto.addressId, userId })
+      : (await Address.findOne({ userId, isDefault: true })) || (await Address.findOne({ userId }));
+
+    if (!address) {
+      throw new ApiError(404, 'Valid customer delivery address not found. Please provide or select an address.', 'ADDRESS_NOT_FOUND');
+    }
+
+    // 6. Authoritative Food Items Lookup & Validation
+    const cartItemsRaw: any[] = metadata.itemsSummary || [];
+    const foodIds = cartItemsRaw.map((i) => i.foodId).filter(Boolean);
+
+    let dbFoods: any[] = [];
+    if (foodIds.length > 0) {
+      dbFoods = await Food.find({
+        _id: { $in: foodIds },
+        restaurantId: restaurant._id,
+        isDeleted: { $ne: true },
+      });
+    }
+
+    const foodMap = new Map(dbFoods.map((f) => [f._id.toString(), f]));
+    let authoritativeSubtotal = 0;
+    const itemsSnapshot: any[] = [];
+
+    for (const rawItem of cartItemsRaw) {
+      const dbFood = rawItem.foodId ? foodMap.get(rawItem.foodId) : null;
+      const unitPrice = dbFood ? (dbFood.discountedPrice || dbFood.price) : rawItem.price;
+      const name = dbFood ? dbFood.name : (rawItem.name || 'Food Item');
+      const dietaryType = dbFood ? dbFood.dietaryType : (rawItem.dietaryType || 'veg');
+      const imageUrl = dbFood ? dbFood.imageUrl : rawItem.imageUrl;
+
+      const optionsCost =
+        rawItem.selectedOptions?.reduce((acc: number, opt: any) => acc + (Number(opt.price) || 0), 0) || 0;
+      const qty = Math.max(1, Number(rawItem.quantity) || 1);
+      const itemTotal = (unitPrice + optionsCost) * qty;
+
+      authoritativeSubtotal += itemTotal;
+
+      itemsSnapshot.push({
+        foodId: dbFood ? dbFood._id.toString() : (rawItem.foodId || 'food_item'),
+        name,
+        imageUrl,
+        dietaryType,
+        quantity: qty,
+        unitPrice,
+        unitPricePaise: Math.round(unitPrice * 100),
+        selectedOptions: rawItem.selectedOptions || [],
+        optionsTotal: optionsCost,
+        itemTotal,
+      });
+    }
+
+    // If no items extracted from summary, fallback to payment subtotal
+    if (itemsSnapshot.length === 0) {
+      authoritativeSubtotal = metadata.subtotal || payment.amount / 100;
+    }
+
+    // 7. Authoritative Coupon Validation
+    let couponDiscount = metadata.discount || 0;
+    let validatedCoupon = (metadata as any).coupon || null;
+    const couponCode = (metadata as any).couponCode;
+
+    if (couponCode) {
+      try {
+        const couponResult = await couponService.validateCoupon({
+          code: couponCode,
+          itemTotal: authoritativeSubtotal,
+          restaurantId: restaurant._id.toString(),
+          userId,
+        });
+        validatedCoupon = couponResult.coupon;
+        couponDiscount = couponResult.discountAmount;
+      } catch {
+        couponDiscount = metadata.discount || 0;
+      }
+    }
+
+    // 8. Server-Authoritative Financial Breakdown
+    const pricing = calculateOrderPricing({
+      itemTotal: authoritativeSubtotal,
+      discountAmount: couponDiscount,
+      tipAmount: metadata.tipAmount || 0,
+    });
+
+    const calculatedGrandTotalPaise = Math.round(pricing.grandTotal * 100);
+
+    // 9. Strict Financial Reconciliation Check
+    // If captured payment amount does not match authoritative calculated total (allowing +/- 1 rupee margin for rounding)
+    if (Math.abs(calculatedGrandTotalPaise - payment.amount) > 100) {
+      throw new ApiError(
+        400,
+        `Payment amount mismatch: captured ₹${(payment.amount / 100).toFixed(2)}, calculated total ₹${pricing.grandTotal.toFixed(2)}`,
+        'PAYMENT_AMOUNT_MISMATCH'
+      );
+    }
+
+    // 10. Generate Human-Friendly Order Number (e.g. KN-20260808-8F4K2)
     const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const randomSuffix = Math.random().toString(36).substring(2, 7).toUpperCase();
     const orderNumber = `KN-${todayStr}-${randomSuffix}`;
 
-    // 6. Server-Calculated Estimated Delivery Time (Standard: 28 mins)
+    // 11. Estimated Delivery Time
     const estimatedDeliveryTime = new Date(Date.now() + 28 * 60 * 1000);
 
-    // 7. Initial Status History
+    // 12. Initial Status History Entry
     const statusHistory: IOrderStatusHistoryEntry[] = [
       {
         status: 'PLACED',
@@ -85,54 +190,44 @@ export class OrderService {
       },
     ];
 
-    // 8. Assemble Immutable Snapshots
-    const itemsSnapshot = (metadata.itemsSummary || []).map((i: any) => ({
-      foodId: i.foodId || 'food_item',
-      name: i.name,
-      quantity: i.quantity,
-      unitPrice: i.price,
-      unitPricePaise: Math.round(i.price * 100),
-      selectedOptions: i.selectedOptions || [],
-      optionsTotal: 0,
-      itemTotal: i.price * i.quantity,
-      dietaryType: i.dietaryType || 'veg',
-    }));
-
+    // 13. Assemble Immutable Snapshots
     const pricingSnapshot = {
-      subtotal: metadata.subtotal || payment.amount / 100,
-      discount: metadata.discount || 0,
-      deliveryFee: metadata.deliveryFee || 0,
-      platformFee: metadata.platformFee || 6,
-      taxAmount: metadata.taxAmount || 0,
-      tipAmount: metadata.tipAmount || 0,
-      grandTotal: metadata.grandTotalRupees || payment.amount / 100,
+      subtotal: pricing.itemTotal,
+      discount: pricing.discountAmount,
+      deliveryFee: pricing.deliveryFee,
+      platformFee: pricing.platformFee,
+      taxAmount: pricing.taxAmount,
+      tipAmount: pricing.tipAmount,
+      grandTotal: pricing.grandTotal,
       grandTotalPaise: payment.amount,
-      savingsTotal: (metadata.discount || 0) + (metadata.deliveryFee === 0 ? 35 : 0),
+      savingsTotal: pricing.savingsTotal,
       currency: payment.currency || 'INR',
     };
 
     const addressSnapshot = {
-      fullName: user.name || `${user.firstName} ${user.lastName}`,
-      phone: user.phone,
-      addressLine1: metadata.addressSummary || 'Customer Delivery Address',
-      city: 'New Delhi',
-      state: 'Delhi',
-      postalCode: '110001',
-      country: 'India',
-      formattedAddress: metadata.addressSummary || 'Customer Delivery Address',
+      fullName: address.fullName,
+      phone: address.phone,
+      addressLine1: address.addressLine1,
+      addressLine2: address.addressLine2 || '',
+      landmark: address.landmark || '',
+      city: address.city,
+      state: address.state,
+      postalCode: address.postalCode,
+      country: address.country || 'India',
+      formattedAddress: `${address.addressLine1}, ${address.city} - ${address.postalCode}`,
     };
 
     const contactSnapshot = {
       name: user.name || `${user.firstName} ${user.lastName}`,
-      phone: user.phone,
+      phone: user.phone || address.phone,
       email: user.email,
     };
 
-    // 9. Persist Order in Database
+    // 14. Persist Order in Database with Unique PaymentId constraint
     const order = await orderRepository.create({
       orderNumber,
       userId: userId as any,
-      restaurantId: payment.restaurantId,
+      restaurantId: restaurant._id as any,
       paymentId: payment._id as any,
       paymentReference: payment.paymentReference,
       razorpayOrderId: payment.razorpayOrderId,
@@ -141,8 +236,8 @@ export class OrderService {
       contactSnapshot,
       items: itemsSnapshot,
       pricing: pricingSnapshot,
-      coupon: (metadata as any).coupon || null,
-      tip: metadata.tipAmount || 0,
+      coupon: validatedCoupon,
+      tip: pricing.tipAmount,
       deliveryInstructions: dto.deliveryInstructions || '',
       deliveryOption: dto.deliveryOption || 'standard',
       status: 'PLACED',
@@ -152,12 +247,12 @@ export class OrderService {
       idempotencyKey: dto.idempotencyKey || payment.idempotencyKey,
     });
 
-    // 10. Link Payment to Order Document
+    // 15. Link Payment to Order Document
     await paymentRepository.updateStatus(payment._id.toString(), payment.status, {
       orderId: order._id as any,
     });
 
-    // 11. Trigger Customer Notifications
+    // 16. Trigger Customer Notifications Idempotently
     notificationService.createNotification({
       userId: payment.userId.toString(),
       type: 'ORDER_PLACED',

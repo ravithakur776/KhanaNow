@@ -1,21 +1,24 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const app_js_1 = __importDefault(require("./app.js"));
-const db_js_1 = require("./config/db.js");
-const env_js_1 = require("./config/env.js");
+import mongoose from 'mongoose';
+import app from './app.js';
+import { connectDB } from './config/db.js';
+import { env } from './config/env.js';
 const startServer = async () => {
     try {
-        await (0, db_js_1.connectDB)();
-        const server = app_js_1.default.listen(env_js_1.env.PORT, () => {
-            console.log(`🚀 Server running in [${env_js_1.env.NODE_ENV}] mode on http://localhost:${env_js_1.env.PORT}`);
+        await connectDB();
+        const server = app.listen(env.PORT, () => {
+            console.log(`🚀 KhanaNow Server running in [${env.NODE_ENV}] mode on port ${env.PORT}`);
         });
-        const gracefulShutdown = (signal) => {
+        const gracefulShutdown = async (signal) => {
             console.log(`\n⚠️ Received ${signal}. Shutting down gracefully...`);
-            server.close(() => {
+            server.close(async () => {
                 console.log('💤 HTTP Server closed.');
+                try {
+                    await mongoose.connection.close();
+                    console.log('📦 MongoDB connection closed gracefully.');
+                }
+                catch (dbErr) {
+                    console.error('Error closing MongoDB connection:', dbErr);
+                }
                 process.exit(0);
             });
         };

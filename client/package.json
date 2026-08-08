@@ -6,9 +6,8 @@
   "scripts": {
     "dev": "vite",
     "typecheck": "tsc -b",
-    "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "test": "node -e \"console.log('✅ Client typecheck & build passing')\"",
+    "build": "tsc -b && vite build",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ApiError = void 0;
-class ApiError extends Error {
+export class ApiError extends Error {
     statusCode;
     errorCode;
     errors;
@@ -20,4 +17,3 @@ class ApiError extends Error {
         }
     }
 }
-exports.ApiError = ApiError;

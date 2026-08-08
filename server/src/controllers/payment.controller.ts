@@ -59,7 +59,7 @@ export class PaymentController {
   async webhook(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const signature = req.headers['x-razorpay-signature'] as string;
-      const rawBody = JSON.stringify(req.body);
+      const rawBody = (req as any).rawBody || Buffer.from(JSON.stringify(req.body));
 
       const isValid = razorpayService.verifyWebhookSignature(rawBody, signature);
       if (!isValid) {
@@ -69,9 +69,7 @@ export class PaymentController {
 
       // Webhook event received safely
       const event = req.body.event;
-      console.log(`📡 Razorpay Webhook Event Received [${event}]`);
-
-      res.status(200).json({ status: 'ok', received: true });
+      res.status(200).json({ status: 'ok', received: true, event });
     } catch (error) {
       next(error);
     }

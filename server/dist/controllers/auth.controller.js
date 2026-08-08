@@ -1,20 +1,17 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.authController = exports.AuthController = void 0;
-const auth_service_js_1 = require("../services/auth.service.js");
-const apiResponse_js_1 = require("../utils/apiResponse.js");
-const env_js_1 = require("../config/env.js");
+import { authService } from '../services/auth.service.js';
+import { sendResponse } from '../utils/apiResponse.js';
+import { env } from '../config/env.js';
 const COOKIE_OPTIONS = {
     httpOnly: true,
-    secure: env_js_1.env.NODE_ENV === 'production',
+    secure: env.NODE_ENV === 'production',
     sameSite: 'strict',
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
-class AuthController {
+export class AuthController {
     async register(req, res, next) {
         try {
-            const result = await auth_service_js_1.authService.register(req.body);
-            (0, apiResponse_js_1.sendResponse)(res, 201, result.message, { user: result.user });
+            const result = await authService.register(req.body);
+            sendResponse(res, 201, result.message, { user: result.user });
         }
         catch (error) {
             next(error);
@@ -22,9 +19,9 @@ class AuthController {
     }
     async login(req, res, next) {
         try {
-            const result = await auth_service_js_1.authService.login(req.body);
+            const result = await authService.login(req.body);
             res.cookie('refreshToken', result.refreshToken, COOKIE_OPTIONS);
-            (0, apiResponse_js_1.sendResponse)(res, 200, 'User logged in successfully', {
+            sendResponse(res, 200, 'User logged in successfully', {
                 user: result.user,
                 accessToken: result.accessToken,
             });
@@ -36,8 +33,8 @@ class AuthController {
     async verifyEmail(req, res, next) {
         try {
             const { email, otp } = req.body;
-            const result = await auth_service_js_1.authService.verifyEmail(email, otp);
-            (0, apiResponse_js_1.sendResponse)(res, 200, result.message);
+            const result = await authService.verifyEmail(email, otp);
+            sendResponse(res, 200, result.message);
         }
         catch (error) {
             next(error);
@@ -46,8 +43,8 @@ class AuthController {
     async resendVerification(req, res, next) {
         try {
             const { email } = req.body;
-            const result = await auth_service_js_1.authService.resendVerification(email);
-            (0, apiResponse_js_1.sendResponse)(res, 200, result.message);
+            const result = await authService.resendVerification(email);
+            sendResponse(res, 200, result.message);
         }
         catch (error) {
             next(error);
@@ -56,8 +53,8 @@ class AuthController {
     async forgotPassword(req, res, next) {
         try {
             const { email } = req.body;
-            const result = await auth_service_js_1.authService.forgotPassword(email);
-            (0, apiResponse_js_1.sendResponse)(res, 200, result.message);
+            const result = await authService.forgotPassword(email);
+            sendResponse(res, 200, result.message);
         }
         catch (error) {
             next(error);
@@ -66,8 +63,8 @@ class AuthController {
     async resetPassword(req, res, next) {
         try {
             const { email, otp, newPassword } = req.body;
-            const result = await auth_service_js_1.authService.resetPassword(email, otp, newPassword);
-            (0, apiResponse_js_1.sendResponse)(res, 200, result.message);
+            const result = await authService.resetPassword(email, otp, newPassword);
+            sendResponse(res, 200, result.message);
         }
         catch (error) {
             next(error);
@@ -76,9 +73,9 @@ class AuthController {
     async refreshToken(req, res, next) {
         try {
             const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
-            const result = await auth_service_js_1.authService.refreshToken(refreshToken);
+            const result = await authService.refreshToken(refreshToken);
             res.cookie('refreshToken', result.refreshToken, COOKIE_OPTIONS);
-            (0, apiResponse_js_1.sendResponse)(res, 200, 'Token refreshed successfully', {
+            sendResponse(res, 200, 'Token refreshed successfully', {
                 user: result.user,
                 accessToken: result.accessToken,
             });
@@ -90,10 +87,10 @@ class AuthController {
     async logout(req, res, next) {
         try {
             if (req.user?.userId) {
-                await auth_service_js_1.authService.logout(req.user.userId);
+                await authService.logout(req.user.userId);
             }
             res.clearCookie('refreshToken', COOKIE_OPTIONS);
-            (0, apiResponse_js_1.sendResponse)(res, 200, 'User logged out successfully');
+            sendResponse(res, 200, 'User logged out successfully');
         }
         catch (error) {
             next(error);
@@ -101,12 +98,11 @@ class AuthController {
     }
     async getMe(req, res, next) {
         try {
-            (0, apiResponse_js_1.sendResponse)(res, 200, 'Current user profile fetched', { user: req.user });
+            sendResponse(res, 200, 'Current user profile fetched', { user: req.user });
         }
         catch (error) {
             next(error);
         }
     }
 }
-exports.AuthController = AuthController;
-exports.authController = new AuthController();
+export const authController = new AuthController();

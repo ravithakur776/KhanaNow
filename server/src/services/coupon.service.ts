@@ -52,14 +52,13 @@ export class CouponService {
       }
     }
 
-    let calculatedDiscount = 0;
-    if (coupon.discountType === 'percentage') {
-      calculatedDiscount = Math.round((dto.itemTotal * coupon.discountValue) / 100);
-      if (coupon.maximumDiscount && calculatedDiscount > coupon.maximumDiscount) {
-        calculatedDiscount = coupon.maximumDiscount;
-      }
-    } else {
-      calculatedDiscount = coupon.discountValue;
+    let calculatedDiscount =
+      coupon.discountType === 'percentage'
+        ? Math.round((dto.itemTotal * coupon.discountValue) / 100)
+        : coupon.discountValue;
+
+    if (coupon.maximumDiscount && calculatedDiscount > coupon.maximumDiscount) {
+      calculatedDiscount = coupon.maximumDiscount;
     }
 
     // Discount cannot exceed item total

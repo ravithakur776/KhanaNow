@@ -3,7 +3,7 @@
 [![KhanaNow CI/CD Pipeline](https://github.com/ravithakur776/KhanaNow/actions/workflows/ci.yml/badge.svg)](https://github.com/ravithakur776/KhanaNow/actions/workflows/ci.yml)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg)](https://www.typescriptlang.org/)
 [![React 19](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.0-38bdf8.svg)](https://tailwindcss.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4.17-38bdf8.svg)](https://tailwindcss.com/)
 [![Express.js](https://img.shields.io/badge/Express-4.21-lightgrey.svg)](https://expressjs.com/)
 [![MongoDB Atlas](https://img.shields.io/badge/MongoDB-Atlas-47a248.svg)](https://www.mongodb.com/)
 [![Razorpay](https://img.shields.io/badge/Razorpay-Payment_Gateway-0c2340.svg)](https://razorpay.com/)
@@ -36,9 +36,9 @@ graph TD
 * **Challenge**: Preventing client-side payload tampering where users maliciously adjust item prices, delivery fees, discount values, or tax rates before checkout.
 * **Solution**: The server recalculates and validates every line item, active coupon rules (e.g. `KHANA50`), delivery thresholds, platform fees, and taxes from the live database. Any discrepancy results in `400 PAYMENT_AMOUNT_MISMATCH`.
 
-### 2. Razorpay Signature Verification & Idempotency
-* **Challenge**: Preventing duplicate order charges and forged payment confirmations.
-* **Solution**: Server computes HMAC-SHA256 signature `crypto.createHmac('sha256', secret).update(order_id + '|' + payment_id).digest('hex')` and verifies exact equality. Payment records enforce unique idempotency keys.
+### 2. Razorpay Signature Verification & Webhook Idempotency
+* **Challenge**: Preventing duplicate order charges, forged payment confirmations, and webhook replay attacks.
+* **Solution**: Server computes HMAC-SHA256 signature `crypto.createHmac('sha256', secret).update(order_id + '|' + payment_id).digest('hex')` using constant-time comparison. Webhooks verify the raw request buffer against `RAZORPAY_WEBHOOK_SECRET` and enforce event idempotency.
 
 ### 3. Strict Restaurant & Order Ownership Isolation
 * **Challenge**: Multi-tenant security where Restaurant Owner A attempts to view or update orders belonging to Restaurant Owner B.
@@ -83,11 +83,11 @@ graph TD
 
 | Layer | Technologies |
 | :--- | :--- |
-| **Frontend** | React 19, TypeScript, Vite, Tailwind CSS, Lucide React, Framer Motion, TanStack Query, Zustand, React Hook Form, Zod |
-| **Backend** | Node.js, Express.js, TypeScript, Mongoose ODM, JWT Authentication, Bcrypt.js, Express Rate Limit, Helmet, Morgan |
+| **Frontend** | React 19, TypeScript 5.7, Vite 6, Tailwind CSS 3.4, Lucide React, Framer Motion, TanStack Query, Zustand, React Hook Form, Zod |
+| **Backend** | Node.js, Express.js 4.21, TypeScript 5.8, Mongoose ODM, JWT Authentication, Bcrypt.js, Express Rate Limit, Helmet, Morgan |
 | **Database** | MongoDB Atlas with compound indexes, Geospatial 2dsphere indexes, and aggregation pipelines |
 | **Payments** | Razorpay SDK, HMAC-SHA256 Webhook Verification |
-| **Testing** | Node.js TSX automated test suite verifying password hashing, pricing integrity, payment security, and ownership isolation |
+| **Testing** | Node.js automated test suite verifying password hashing, pricing integrity, payment security, and ownership isolation |
 
 ---
 
@@ -121,6 +121,8 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ## 🌱 Database Seeding (Test Credentials)
 
+> **Note**: Seed accounts are for development/demo only. Never use demo accounts or credentials in a production deployment.
+
 To seed the database with signature dishes, categories, coupons, and test accounts:
 ```bash
 cd server
@@ -140,7 +142,7 @@ npx tsx src/scripts/seed.ts
 Run the full production hardening and security test suite:
 ```bash
 cd server
-npx tsx src/utils/production.test.ts
+npm test
 ```
 
 Output:
@@ -156,15 +158,32 @@ Output:
 ✅ PASS: Grand total matches server-authoritative bill breakdown (781)
 ✅ PASS: Generated HMAC-SHA256 signature is valid 64-char hex
 ✅ PASS: HMAC signature changes when payload is tampered
+✅ PASS: Constant-time verification accepts valid signature
+✅ PASS: Webhook raw buffer HMAC is 64 hex chars
+✅ PASS: Webhook signature fails with incorrect secret
+✅ PASS: First webhook event is processed
+✅ PASS: Duplicate webhook event is detected and ignored
+✅ PASS: Exact paise match reconciles payment amount and currency
+✅ PASS: Server strictly rejects payment amount mismatch
+✅ PASS: State machine permits created -> captured
+✅ PASS: State machine strictly blocks captured -> created
+✅ PASS: State machine strictly blocks captured -> failed
 ✅ PASS: Customer A can view their own order
 ✅ PASS: Customer B is blocked from viewing Customer A order
 ✅ PASS: Restaurant 1 can process order assigned to Kitchen 1
 ✅ PASS: Restaurant 2 is strictly blocked from updating Kitchen 1 order
+✅ PASS: Customer with delivered order can review restaurant
+✅ PASS: Customer without delivered order is blocked from fake review
 ✅ PASS: Deterministic event keys match for repeated status triggers
 ✅ PASS: Distinct order lifecycle milestones generate unique event keys
+✅ PASS: Admin role authorized for platform dashboard
+✅ PASS: Customer role blocked from platform dashboard
+✅ PASS: Restaurant owner blocked from platform dashboard
+✅ PASS: Sanitizer preserves valid query strings
+✅ PASS: Sanitizer strips NoSQL operator objects
 
 ========================================
-🎉 Test Results: 15/15 Passed (100% Success Rate)
+🎉 Test Results: 32/32 Passed (100% Success Rate)
 ========================================
 ```
 

@@ -1,5 +1,6 @@
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import { env } from './config/env.js';
@@ -8,14 +9,41 @@ import healthRoutes from './routes/v1/health.routes.js';
 import { requestIdMiddleware } from './middlewares/requestId.middleware.js';
 import { generalApiLimiter } from './middlewares/rateLimit.middleware.js';
 import { errorHandler } from './middlewares/error.middleware.js';
-import { sendResponse } from './utils/apiResponse.js';
 
 const app: Application = express();
 
-// Request ID & Body Parsing Middlewares
+// Request ID Middleware
 app.use(requestIdMiddleware);
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Security Headers with Helmet (Narrow CSP for Razorpay, Google Fonts & Cloudinary)
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", 'https://checkout.razorpay.com'],
+        frameSrc: ["'self'", 'https://api.razorpay.com', 'https://checkout.razorpay.com'],
+        connectSrc: ["'self'", 'https://api.razorpay.com', 'https://lumberjack.razorpay.com', env.CLIENT_URL],
+        imgSrc: ["'self'", 'data:', 'https:', 'https://images.unsplash.com', 'https://res.cloudinary.com'],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+);
+
+// Raw Body capture for webhook signature verification + Standard JSON & URLencoded parsers
+app.use(
+  express.json({
+    limit: '1mb',
+    verify: (req, _res, buf) => {
+      (req as any).rawBody = buf;
+    },
+  })
+);
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 
 if (env.NODE_ENV === 'development') {
@@ -23,12 +51,30 @@ if (env.NODE_ENV === 'development') {
 }
 
 // Production-Grade CORS Configuration
+const allowedOrigins =
+  env.NODE_ENV === 'production'
+    ? [env.CLIENT_URL]
+    : [env.CLIENT_URL, 'http://localhost:5173', 'http://127.0.0.1:5173'];
+
 app.use(
   cors({
-    origin: [env.CLIENT_URL, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Request-ID', 'Idempotency-Key'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'X-Request-ID',
+      'Idempotency-Key',
+      'x-razorpay-signature',
+    ],
   })
 );
 

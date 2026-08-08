@@ -20,7 +20,7 @@ export class RazorpayService {
           key_secret: env.RAZORPAY_KEY_SECRET,
         });
       } catch (error) {
-        console.warn('⚠️ Razorpay initialized in mock/test mode:', error);
+        console.warn('⚠️ Razorpay initialization warning:', error);
       }
     }
   }
@@ -41,7 +41,7 @@ export class RazorpayService {
     if (
       this.razorpayInstance &&
       env.RAZORPAY_KEY_ID &&
-      !env.RAZORPAY_KEY_ID.startsWith('rzp_test_mock')
+      !env.RAZORPAY_KEY_ID.startsWith('rzp_test_placeholder')
     ) {
       try {
         const order = await this.razorpayInstance.orders.create(options);
@@ -55,6 +55,11 @@ export class RazorpayService {
         console.error('❌ Razorpay order creation failed:', err?.message || err);
         throw new ApiError(502, 'Failed to create payment order with gateway. Please try again.', 'GATEWAY_ERROR');
       }
+    }
+
+    // In production, failure to connect to Razorpay must fail closed
+    if (env.NODE_ENV === 'production') {
+      throw new ApiError(500, 'Production Razorpay gateway credentials are not configured.', 'GATEWAY_CONFIG_MISSING');
     }
 
     // Deterministic Mock Order for test/dev environments
@@ -72,9 +77,13 @@ export class RazorpayService {
       return false;
     }
 
+    if (!env.RAZORPAY_KEY_SECRET) {
+      throw new ApiError(500, 'Razorpay key secret is not configured on server.', 'SERVER_CONFIG_ERROR');
+    }
+
     const body = `${orderId}|${paymentId}`;
     const expectedSignature = crypto
-      .createHmac('sha256', env.RAZORPAY_KEY_SECRET || 'mockRazorpaySecret67890')
+      .createHmac('sha256', env.RAZORPAY_KEY_SECRET)
       .update(body)
       .digest('hex');
 
@@ -85,7 +94,7 @@ export class RazorpayService {
     );
   }
 
-  verifyWebhookSignature(rawBody: string, signature: string): boolean {
+  verifyWebhookSignature(rawBody: string | Buffer, signature: string): boolean {
     if (!signature || !env.RAZORPAY_WEBHOOK_SECRET) {
       return false;
     }
