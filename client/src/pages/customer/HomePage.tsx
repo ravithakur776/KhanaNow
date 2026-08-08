@@ -13,23 +13,25 @@ import {
   Heart,
   ChevronRight,
   Filter,
+  RotateCcw,
+  ShoppingBag,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { useCartStore } from '../../stores/useCartStore';
 import { useLocationStore } from '../../stores/useLocationStore';
 import { useUIStore } from '../../stores/useUIStore';
 import { useRestaurants, useCategories } from '../../services/restaurantService';
 import { useToggleFavorite } from '../../services/favoriteService';
+import { useHomeRecommendations } from '../../services/recommendationService';
 import { Display, Heading, Text } from '../../components/ui/typography';
 import { Container } from '../../components/layout/Container';
-import { Section } from '../../components/layout/Section';
-import { Grid } from '../../components/layout/Grid';
 import { HStack, VStack } from '../../components/layout/Stack';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Card } from '../../components/ui/card';
-import { RatingStars } from '../../components/shared/RatingStars';
 import { PriceDisplay } from '../../components/shared/PriceDisplay';
 import { CategoryPill } from '../../components/shared/CategoryPill';
+import { FoodTag } from '../../components/shared/FoodTag';
 import { Skeleton } from '../../components/ui/skeleton';
 import { FoodDetailModal, FoodItemDetail } from '../../components/food/FoodDetailModal';
 
@@ -44,6 +46,7 @@ export const HomePage: React.FC = () => {
   const { user, isAuthenticated } = useAuthStore();
   const { currentLocation } = useLocationStore();
   const { openLocationDrawer, openAuthModal } = useUIStore();
+  const { addItem } = useCartStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -52,6 +55,7 @@ export const HomePage: React.FC = () => {
   const toggleFavoriteMutation = useToggleFavorite();
   const [favMap, setFavMap] = useState<Record<string, boolean>>({});
 
+  const { data: recData, isLoading: isLoadingRecs } = useHomeRecommendations();
   const { data: restaurantResponse, isLoading: isLoadingRestaurants } = useRestaurants({
     search: searchQuery,
     cuisine: selectedCategory,
@@ -89,6 +93,19 @@ export const HomePage: React.FC = () => {
     );
   };
 
+  const handleQuickAdd = (food: any) => {
+    addItem({
+      foodId: food._id,
+      name: food.name,
+      price: food.price,
+      quantity: 1,
+      imageUrl: food.imageUrl,
+      dietaryType: food.dietaryType === 'non_veg' ? 'non-veg' : food.dietaryType,
+      restaurantId: food.restaurantId?._id || food.restaurantId,
+      restaurantName: food.restaurantId?.name || 'Kitchen',
+    });
+  };
+
   return (
     <div className="space-y-12 pb-20">
       {/* Top Header & Personalized Greeting */}
@@ -98,7 +115,9 @@ export const HomePage: React.FC = () => {
             <HStack justify="between" align="center" className="w-full">
               <div>
                 <Text variant="caption" weight="bold" className="text-primary uppercase tracking-widest">
-                  {isAuthenticated ? `Welcome back, ${user?.firstName || user?.name || 'Foodie'}! 👋` : 'Deliver to your doorstep 🚀'}
+                  {isAuthenticated
+                    ? `Welcome back, ${user?.firstName || user?.name || 'Foodie'}! 👋`
+                    : 'Deliver to your doorstep 🚀'}
                 </Text>
                 <Heading level="h2">
                   {isAuthenticated ? 'What are you craving for lunch?' : 'Order Food Smarter & Faster'}
@@ -165,6 +184,92 @@ export const HomePage: React.FC = () => {
           ))}
         </div>
 
+        {/* Dynamic Recommendations Engine Sections */}
+        {recData?.sections?.map((section) => (
+          <div key={section.id} className="space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <Heading level="h3">{section.title}</Heading>
+                <Text variant="small">{section.subtitle}</Text>
+              </div>
+              {section.id === 'order_again' && (
+                <Link to="/orders" className="text-xs font-bold text-primary hover:underline">
+                  View Past Orders →
+                </Link>
+              )}
+            </div>
+
+            {section.type === 'foods' ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {section.items.map((food: any) => (
+                  <Card
+                    key={food._id}
+                    className="p-4 border-border/80 glass-panel space-y-3 flex flex-col justify-between"
+                  >
+                    <div className="space-y-3">
+                      <div className="relative h-36 w-full rounded-2xl overflow-hidden bg-muted">
+                        <img src={food.imageUrl} alt={food.name} className="h-full w-full object-cover" />
+                        <div className="absolute top-2 left-2">
+                          <FoodTag type={food.dietaryType === 'non_veg' ? 'non-veg' : food.dietaryType} />
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between items-start gap-2">
+                          <h4 className="font-extrabold text-sm text-foreground truncate">{food.name}</h4>
+                          <PriceDisplay amount={food.price} size="sm" />
+                        </div>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {food.restaurantId?.name || 'Kitchen Specialty'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <Button
+                      size="sm"
+                      onClick={() => handleQuickAdd(food)}
+                      className="w-full font-bold text-xs h-9 shadow-md shadow-primary/20 gap-1.5"
+                    >
+                      <ShoppingBag className="h-3.5 w-3.5" /> Add to Cart
+                    </Button>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {section.items.map((rest: any) => (
+                  <Link key={rest._id} to={`/restaurant/${rest._id}`}>
+                    <Card className="p-4 border-border/80 glass-panel space-y-3 hover:border-primary/50 transition-all">
+                      <div className="relative h-44 w-full rounded-2xl overflow-hidden bg-muted">
+                        <img src={rest.bannerImageUrl} alt={rest.name} className="h-full w-full object-cover" />
+                        <div className="absolute top-3 right-3">
+                          <button
+                            onClick={(e) => handleToggleFavorite(e, rest._id)}
+                            className="h-8 w-8 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-white"
+                          >
+                            <Heart className={`h-4 w-4 ${favMap[rest._id] ? 'fill-primary text-primary' : ''}`} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex justify-between items-center">
+                          <h4 className="font-extrabold text-base text-foreground truncate">{rest.name}</h4>
+                          <div className="flex items-center gap-1 text-xs font-bold text-amber-400">
+                            <Star className="h-3.5 w-3.5 fill-amber-400" />
+                            <span>{rest.avgRating || 4.5}</span>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">{rest.cuisines?.join(', ')}</p>
+                      </div>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+
         {/* Categories Pills */}
         <div className="space-y-4">
           <HStack justify="between" align="center">
@@ -192,102 +297,55 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
 
-        {/* Restaurant Listing Section */}
+        {/* Featured Restaurants Listing Section */}
         <div className="space-y-6">
           <HStack justify="between" align="center">
             <div>
               <Heading level="h3">Featured Restaurants</Heading>
               <Text variant="small">Top rated kitchens offering express delivery</Text>
             </div>
-            <Link to="/search">
-              <Button variant="outline" size="sm" className="font-bold">
-                View All Filters <Filter className="h-3.5 w-3.5 ml-1" />
-              </Button>
-            </Link>
           </HStack>
 
           {isLoadingRestaurants ? (
-            <Grid cols={4} gap="md">
-              {Array.from({ length: 4 }).map((_, idx) => (
-                <div key={idx} className="space-y-3">
-                  <Skeleton className="h-44 w-full rounded-2xl" />
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-4 w-1/2" />
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <Skeleton key={i} className="h-64 rounded-3xl" />
               ))}
-            </Grid>
+            </div>
           ) : (
-            <Grid cols={4} gap="md">
-              {restaurants.map((rest: any) => {
-                const restId = rest._id || rest.id;
-                const isFav = favMap[restId] || false;
-
-                return (
-                  <Card key={restId} className="overflow-hidden group cursor-pointer border-border hover:border-primary/40 relative">
-                    <Link to={`/restaurant/${restId}`}>
-                      <div className="relative h-44 w-full overflow-hidden bg-card">
-                        <img
-                          src={rest.bannerImageUrl || 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=800&auto=format&fit=crop&q=80'}
-                          alt={rest.name}
-                          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                        <div className="absolute top-3 left-3">
-                          <Badge variant={rest.isPureVeg ? 'veg' : 'nonveg'} className="font-bold">
-                            {rest.isPureVeg ? '100% PURE VEG' : 'VEG & NON-VEG'}
-                          </Badge>
-                        </div>
-
-                        {/* Heart Favorite Button */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {restaurants.map((rest: any) => (
+                <Link key={rest._id} to={`/restaurant/${rest._id}`}>
+                  <Card className="p-4 border-border/80 glass-panel space-y-3 hover:border-primary/50 transition-all">
+                    <div className="relative h-44 w-full rounded-2xl overflow-hidden bg-muted">
+                      <img src={rest.bannerImageUrl} alt={rest.name} className="h-full w-full object-cover" />
+                      <div className="absolute top-3 right-3">
                         <button
-                          type="button"
-                          onClick={(e) => handleToggleFavorite(e, restId)}
-                          className="absolute top-3 right-3 rounded-full bg-card/80 backdrop-blur-md p-2 text-muted-foreground hover:text-rose-500 transition-all active:scale-90"
+                          onClick={(e) => handleToggleFavorite(e, rest._id)}
+                          className="h-8 w-8 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-white"
                         >
-                          <Heart className={`h-4 w-4 ${isFav ? 'fill-rose-500 text-rose-500' : ''}`} />
+                          <Heart className={`h-4 w-4 ${favMap[rest._id] ? 'fill-primary text-primary' : ''}`} />
                         </button>
-
-                        {rest.offerBadge && (
-                          <div className="absolute bottom-3 left-3 bg-primary text-white text-xs font-black px-2.5 py-1 rounded-lg">
-                            {rest.offerBadge}
-                          </div>
-                        )}
                       </div>
+                    </div>
 
-                      <div className="p-5 space-y-3">
-                        <HStack justify="between" align="start">
-                          <Heading level="h4" className="truncate group-hover:text-primary transition-colors">
-                            {rest.name}
-                          </Heading>
-                          <RatingStars rating={rest.avgRating || 4.8} size="sm" />
-                        </HStack>
-
-                        <Text variant="small" className="truncate">
-                          {rest.cuisines?.join(', ') || 'Multi-Cuisine'}
-                        </Text>
-
-                        <HStack justify="between" align="center" className="border-t border-border/60 pt-3 text-xs text-muted-foreground font-semibold">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3.5 w-3.5 text-primary" /> {rest.deliveryTimeMinutes?.min || 20}-{rest.deliveryTimeMinutes?.max || 30} mins
-                          </span>
-                          <span>₹{rest.costForTwo} for two</span>
-                        </HStack>
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <h4 className="font-extrabold text-base text-foreground truncate">{rest.name}</h4>
+                        <div className="flex items-center gap-1 text-xs font-bold text-amber-400">
+                          <Star className="h-3.5 w-3.5 fill-amber-400" />
+                          <span>{rest.avgRating || 4.5}</span>
+                        </div>
                       </div>
-                    </Link>
+                      <p className="text-xs text-muted-foreground truncate">{rest.cuisines?.join(', ')}</p>
+                    </div>
                   </Card>
-                );
-              })}
-            </Grid>
+                </Link>
+              ))}
+            </div>
           )}
         </div>
       </Container>
-
-      {/* Food Detail Modal Trigger */}
-      {selectedFoodModal && (
-        <FoodDetailModal
-          food={selectedFoodModal}
-          onClose={() => setSelectedFoodModal(null)}
-        />
-      )}
     </div>
   );
 };

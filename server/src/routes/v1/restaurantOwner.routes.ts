@@ -13,7 +13,7 @@ import { updateOrderStatusSchema } from '../../validators/order.validator.js';
 const router = Router();
 
 // Protect all owner endpoints with authentication and strict restaurant_owner role check
-router.use(authenticate, authorizeRoles('restaurant_owner', 'admin'));
+router.use(authenticate, authorizeRoles('restaurant_owner'));
 
 // Dashboard & Analytics
 router.get('/dashboard', (req, res, next) => restaurantOwnerController.getDashboard(req, res, next));

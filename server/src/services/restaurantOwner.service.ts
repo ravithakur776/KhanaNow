@@ -37,7 +37,7 @@ export class RestaurantOwnerService {
 
   async updateOrderStatus(ownerId: string, orderNumber: string, status: OrderStatus, note?: string) {
     const restaurant = await this.getVerifiedRestaurant(ownerId);
-    return orderService.restaurantUpdateOrderStatus(orderNumber, status, note, 'restaurant');
+    return orderService.restaurantUpdateOrderStatus(orderNumber, status, note, 'restaurant', restaurant._id.toString());
   }
 
   async getMenu(ownerId: string, page = 1, limit = 50, search?: string, categoryId?: string) {

@@ -21,6 +21,7 @@ import { VerifyEmailPage } from '../pages/auth/VerifyEmailPage';
 import { UnauthorizedPage } from '../pages/auth/UnauthorizedPage';
 
 import { FavoritesPage } from '../pages/customer/FavoritesPage';
+import { NotificationsPage } from '../pages/customer/NotificationsPage';
 import { CheckoutPage } from '../pages/customer/CheckoutPage';
 import { OrderSuccessPage } from '../pages/customer/OrderSuccessPage';
 import { OrderTrackingPage } from '../pages/customer/OrderTrackingPage';
@@ -62,6 +63,7 @@ export const router = createBrowserRouter([
         element: <ProtectedRoute />,
         children: [
           { path: 'favorites', element: <FavoritesPage /> },
+          { path: 'notifications', element: <NotificationsPage /> },
           { path: 'orders', element: <OrderHistoryPage /> },
           { path: 'orders/:orderNumber', element: <OrderDetailsPage /> },
           { path: 'orders/:orderId/track', element: <OrderTrackingPage /> },

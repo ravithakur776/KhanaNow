@@ -14,12 +14,14 @@ import {
   Tag,
   Phone,
   User as UserIcon,
+  Star,
 } from 'lucide-react';
 import {
   useOrderDetails,
   useCancelOrderMutation,
   useReorderMutation,
 } from '../../services/orderService';
+import { ReviewModal } from '../../components/reviews/ReviewModal';
 import { useCartStore } from '../../stores/useCartStore';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -40,6 +42,7 @@ export const OrderDetailsPage: React.FC = () => {
   const reorderMutation = useReorderMutation();
 
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('Change of delivery plans');
 
   if (isLoading) {
@@ -119,6 +122,16 @@ export const OrderDetailsPage: React.FC = () => {
         </div>
 
         <div className="flex gap-2">
+          {order.status === 'DELIVERED' && (
+            <Button
+              size="sm"
+              onClick={() => setIsReviewOpen(true)}
+              className="font-extrabold gap-1.5 bg-amber-500 hover:bg-amber-600 text-white shadow-md"
+            >
+              <Star className="h-4 w-4 fill-white" /> Rate Order
+            </Button>
+          )}
+
           {order.status !== 'CANCELLED' && order.status !== 'DELIVERED' && (
             <Link to={`/track-order/${order.orderNumber}`}>
               <Button size="sm" className="font-extrabold gap-1.5 shadow-md">
@@ -320,6 +333,17 @@ export const OrderDetailsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Verified Purchase Review Modal */}
+      <ReviewModal
+        isOpen={isReviewOpen}
+        onClose={() => setIsReviewOpen(false)}
+        orderId={order._id}
+        orderNumber={order.orderNumber}
+        restaurantId={typeof order.restaurantId === 'string' ? order.restaurantId : (order.restaurantId?._id || '')}
+        restaurantName={order.restaurantId?.name || 'Kitchen'}
+        items={order.items?.map((i: any) => ({ foodId: i.foodId, name: i.name }))}
+      />
     </div>
   );
 };

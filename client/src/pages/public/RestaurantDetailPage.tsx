@@ -28,6 +28,9 @@ import { useCartStore } from '../../stores/useCartStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useUIStore } from '../../stores/useUIStore';
 import { useToggleFavorite, useCheckFavorite } from '../../services/favoriteService';
+import { useRestaurantReviews } from '../../services/reviewService';
+import { ReviewCard } from '../../components/reviews/ReviewCard';
+import { RatingDistribution } from '../../components/reviews/RatingStars';
 
 const MOCK_RESTAURANT = {
   id: 'rest-1',
@@ -141,6 +144,7 @@ export const RestaurantDetailPage: React.FC = () => {
 
   const [activeCategory, setActiveCategory] = useState('cat-1');
   const [selectedFoodModal, setSelectedFoodModal] = useState<FoodItemDetail | null>(null);
+  const { data: reviewsData } = useRestaurantReviews(id);
 
   // Favorite toggle query/mutation
   const toggleFavoriteMutation = useToggleFavorite();
@@ -383,23 +387,38 @@ export const RestaurantDetailPage: React.FC = () => {
 
         {/* Customer Reviews & FSSAI Policies Section */}
         <div className="space-y-6 pt-6 border-t border-border">
-          <h3 className="text-xl font-extrabold text-foreground">Verified Customer Reviews</h3>
+          <div className="flex justify-between items-center">
+            <h3 className="text-xl font-extrabold text-foreground">Verified Customer Reviews</h3>
+            {reviewsData?.summary && (
+              <span className="text-xs font-bold text-muted-foreground">
+                {reviewsData.summary.totalRatings} Reviews • {reviewsData.summary.avgRating} ★
+              </span>
+            )}
+          </div>
+
+          {reviewsData?.summary && (
+            <RatingDistribution
+              avgRating={reviewsData.summary.avgRating}
+              totalRatings={reviewsData.summary.totalRatings}
+              distribution={reviewsData.summary.distribution}
+            />
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {MOCK_RESTAURANT.reviews.map((rev) => (
-              <Card key={rev.id} className="p-5 border-border/80 glass-panel space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs text-foreground">{rev.name}</span>
-                  <RatingStars rating={rev.rating} size="sm" />
-                </div>
-                <p className="text-xs text-muted-foreground italic">"{rev.comment}"</p>
-                <span className="text-[10px] text-muted-foreground block">{rev.date}</span>
-              </Card>
-            ))}
+            {reviewsData?.reviews?.length === 0 ? (
+              <div className="col-span-2 py-8 text-center text-xs text-muted-foreground">
+                No reviews yet. Be the first customer to leave a review after your delivery!
+              </div>
+            ) : (
+              reviewsData?.reviews?.map((rev) => (
+                <ReviewCard key={rev._id} review={rev} />
+              ))
+            )}
           </div>
 
           <div className="p-4 rounded-2xl border border-border bg-card/40 flex items-center justify-between text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5 font-semibold">
-              <ShieldCheck className="h-4 w-4 text-emerald-400" /> FSSAI License No. {MOCK_RESTAURANT.fssaiNumber}
+              <ShieldCheck className="h-4 w-4 text-emerald-400" /> FSSAI Verified Kitchen License
             </span>
             <span>Audited for Hygiene & Temperature</span>
           </div>

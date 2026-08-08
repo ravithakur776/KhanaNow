@@ -16,6 +16,7 @@ import { useAuthStore } from '../../stores/useAuthStore';
 import { useCartStore } from '../../stores/useCartStore';
 import { useUIStore } from '../../stores/useUIStore';
 import { useLocationStore } from '../../stores/useLocationStore';
+import { NotificationBell } from '../notifications/NotificationBell';
 import { Button } from '../ui/button';
 
 export const Navbar: React.FC = () => {
@@ -89,6 +90,9 @@ export const Navbar: React.FC = () => {
               <Search className="h-5 w-5 text-foreground" />
             </Button>
           </Link>
+
+          {/* Notification Bell */}
+          <NotificationBell />
 
           {/* Cart Drawer Trigger Button */}
           <Button

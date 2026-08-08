@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { orderRepository, OrderQueryOptions } from '../repositories/order.repository.js';
 import { paymentRepository } from '../repositories/payment.repository.js';
 import { checkoutService, CheckoutValidateDTO } from './checkout.service.js';
+import { notificationService } from './notification.service.js';
 import { User } from '../models/user.model.js';
 import { Food } from '../models/food.model.js';
 import { Restaurant } from '../models/restaurant.model.js';
@@ -156,6 +157,25 @@ export class OrderService {
       orderId: order._id as any,
     });
 
+    // 11. Trigger Customer Notifications
+    notificationService.createNotification({
+      userId: payment.userId.toString(),
+      type: 'ORDER_PLACED',
+      title: 'Order Placed Successfully! 🎉',
+      message: `Your order #${order.orderNumber} has been received by ${restaurant.name}.`,
+      data: { orderNumber: order.orderNumber, restaurantId: restaurant._id.toString() },
+      eventKey: `ORDER_PLACED:${order.orderNumber}`,
+    }).catch((e) => console.error('Notification error:', e));
+
+    notificationService.createNotification({
+      userId: payment.userId.toString(),
+      type: 'PAYMENT_SUCCESS',
+      title: 'Payment Confirmed ✅',
+      message: `Payment of ₹${order.pricing.grandTotal} was securely verified for order #${order.orderNumber}.`,
+      data: { orderNumber: order.orderNumber },
+      eventKey: `PAYMENT_SUCCESS:${order.orderNumber}`,
+    }).catch((e) => console.error('Notification error:', e));
+
     return {
       order,
       isReused: false,
@@ -292,11 +312,16 @@ export class OrderService {
     orderNumber: string,
     newStatus: OrderStatus,
     note?: string,
-    actorType: 'restaurant' | 'delivery_partner' | 'admin' = 'restaurant'
+    actorType: 'restaurant' | 'delivery_partner' | 'admin' = 'restaurant',
+    expectedRestaurantId?: string
   ) {
     const order = await orderRepository.findByOrderNumber(orderNumber);
     if (!order) {
       throw new ApiError(404, `Order "${orderNumber}" not found`, 'ORDER_NOT_FOUND');
+    }
+
+    if (expectedRestaurantId && order.restaurantId.toString() !== expectedRestaurantId) {
+      throw new ApiError(403, 'Forbidden: You do not own this order or have permission to modify it', 'FORBIDDEN_ORDER_ACCESS');
     }
 
     const allowedTransitions = VALID_STATUS_TRANSITIONS[order.status] || [];
@@ -318,11 +343,45 @@ export class OrderService {
     const extraUpdates: any = {};
     if (newStatus === 'CONFIRMED') extraUpdates.acceptedAt = new Date();
     if (newStatus === 'PREPARING') extraUpdates.preparingAt = new Date();
-    if (newStatus === 'READY_FOR_PICKUP') extraUpdates.readyAt = new Date();
-    if (newStatus === 'PICKED_UP') extraUpdates.pickedUpAt = new Date();
-    if (newStatus === 'DELIVERED') extraUpdates.deliveredAt = new Date();
+    const updatedOrder = await orderRepository.updateStatus(order._id.toString(), newStatus, historyEntry, extraUpdates);
 
-    return orderRepository.updateStatus(order._id.toString(), newStatus, historyEntry, extraUpdates);
+    // Trigger deterministic notifications based on transition
+    const NOTIFICATION_MESSAGES: Record<OrderStatus, { type: any; title: string; message: string }> = {
+      CONFIRMED: { type: 'ORDER_CONFIRMED', title: 'Order Accepted! 👨‍🍳', message: `Kitchen has accepted your order #${orderNumber} and will start cooking.` },
+      PREPARING: { type: 'ORDER_PREPARING', title: 'Cooking in Progress 🔥', message: `Chefs are now preparing your freshly made meal.` },
+      READY_FOR_PICKUP: { type: 'ORDER_READY', title: 'Order Packed & Ready 📦', message: `Your food is securely packed and waiting for delivery pickup.` },
+      PICKED_UP: { type: 'ORDER_OUT_FOR_DELIVERY', title: 'Driver on the Way! 🛵', message: `Delivery executive is en route with your order #${orderNumber}.` },
+      OUT_FOR_DELIVERY: { type: 'ORDER_OUT_FOR_DELIVERY', title: 'Out for Delivery 🚀', message: `Your meal is arriving shortly!` },
+      DELIVERED: { type: 'ORDER_DELIVERED', title: 'Order Delivered! 🎉', message: `Your order #${orderNumber} has been delivered. Enjoy your meal!` },
+      CANCELLED: { type: 'ORDER_CANCELLED', title: 'Order Cancelled ✕', message: `Order #${orderNumber} was cancelled. Refund initiated if applicable.` },
+      PLACED: { type: 'ORDER_PLACED', title: 'Order Placed', message: 'Order received.' },
+      FAILED: { type: 'PAYMENT_FAILED', title: 'Order Failed', message: 'Order could not be completed.' },
+    };
+
+    const notif = NOTIFICATION_MESSAGES[newStatus];
+    if (notif) {
+      notificationService.createNotification({
+        userId: order.userId.toString(),
+        type: notif.type,
+        title: notif.title,
+        message: notif.message,
+        data: { orderNumber: order.orderNumber },
+        eventKey: `${newStatus}:${order.orderNumber}`,
+      }).catch((e) => console.error('Notification trigger error:', e));
+    }
+
+    if (newStatus === 'DELIVERED') {
+      notificationService.createNotification({
+        userId: order.userId.toString(),
+        type: 'REVIEW_REMINDER',
+        title: 'How was your food? ⭐',
+        message: `Leave a verified review for your meal from ${order.restaurantId}.`,
+        data: { orderNumber: order.orderNumber, restaurantId: order.restaurantId.toString() },
+        eventKey: `REVIEW_REMINDER:${order.orderNumber}`,
+      }).catch((e) => console.error('Review reminder notification error:', e));
+    }
+
+    return updatedOrder;
   }
 }
 

@@ -1,30 +1,51 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+export type ReviewStatus = 'published' | 'hidden' | 'flagged' | 'pending';
+
 export interface IReviewDocument extends Document {
-  restaurantId: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
-  userName: string;
-  userAvatar?: string;
-  rating: number; // 1-5
+  orderId: mongoose.Types.ObjectId;
+  restaurantId: mongoose.Types.ObjectId;
+  foodId?: mongoose.Types.ObjectId;
+  rating: number; // 1 to 5
+  title?: string;
   comment: string;
   images?: string[];
+  isVerifiedPurchase: boolean;
+  status: ReviewStatus;
+  moderationReason?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
 const ReviewSchema = new Schema<IReviewDocument>(
   {
-    restaurantId: { type: Schema.Types.ObjectId, ref: 'Restaurant', required: true },
-    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    userName: { type: String, required: true },
-    userAvatar: { type: String },
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    orderId: { type: Schema.Types.ObjectId, ref: 'Order', required: true, index: true },
+    restaurantId: { type: Schema.Types.ObjectId, ref: 'Restaurant', required: true, index: true },
+    foodId: { type: Schema.Types.ObjectId, ref: 'Food', index: true },
     rating: { type: Number, required: true, min: 1, max: 5 },
-    comment: { type: String, required: true },
+    title: { type: String, maxlength: 120, trim: true },
+    comment: { type: String, required: true, maxlength: 1000, trim: true },
     images: [{ type: String }],
+    isVerifiedPurchase: { type: Boolean, default: true },
+    status: {
+      type: String,
+      enum: ['published', 'hidden', 'flagged', 'pending'],
+      default: 'published',
+      index: true,
+    },
+    moderationReason: { type: String },
   },
   { timestamps: true }
 );
 
-ReviewSchema.index({ restaurantId: 1, createdAt: -1 });
+// Prevent duplicate review per user for the exact same order and restaurant/food
+ReviewSchema.index(
+  { userId: 1, orderId: 1, restaurantId: 1, foodId: 1 },
+  { unique: true }
+);
+ReviewSchema.index({ restaurantId: 1, status: 1, createdAt: -1 });
+ReviewSchema.index({ foodId: 1, status: 1, createdAt: -1 });
 
 export const Review = mongoose.model<IReviewDocument>('Review', ReviewSchema);
