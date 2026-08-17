@@ -8,8 +8,8 @@ export interface IFoodDocument extends Document {
   imageUrl: string;
   price: number;
   discountedPrice?: number;
-  dietaryType: 'veg' | 'non-veg' | 'egg';
-  spiceLevel?: 'mild' | 'medium' | 'spicy' | 'extra-spicy';
+  dietaryType: 'veg' | 'non_veg' | 'non-veg' | 'vegan' | 'egg';
+  spiceLevel?: 'none' | 'mild' | 'medium' | 'spicy' | 'hot' | 'extra-spicy' | 'extra_hot';
   ingredients?: string[];
   preparationTimeMinutes?: number;
   rating?: number;
@@ -29,8 +29,8 @@ const FoodSchema = new Schema<IFoodDocument>(
     imageUrl: { type: String, required: true },
     price: { type: Number, required: true },
     discountedPrice: { type: Number },
-    dietaryType: { type: String, enum: ['veg', 'non-veg', 'egg'], default: 'veg' },
-    spiceLevel: { type: String, enum: ['mild', 'medium', 'spicy', 'extra-spicy'], default: 'medium' },
+    dietaryType: { type: String, enum: ['veg', 'non_veg', 'non-veg', 'vegan', 'egg'], default: 'veg' },
+    spiceLevel: { type: String, enum: ['none', 'mild', 'medium', 'spicy', 'hot', 'extra-spicy', 'extra_hot'], default: 'medium' },
     ingredients: [{ type: String }],
     preparationTimeMinutes: { type: Number, default: 15 },
     rating: { type: Number, default: 4.8 },

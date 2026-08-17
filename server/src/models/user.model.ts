@@ -89,8 +89,7 @@ UserSchema.virtual('name').get(function () {
   return `${this.firstName} ${this.lastName}`.trim();
 });
 
-// GeoIndex for customer location queries & Email index
+// GeoIndex for customer location queries
 UserSchema.index({ 'addresses.location': '2dsphere' });
-UserSchema.index({ email: 1 });
 
 export const User = mongoose.model<IUserDocument>('User', UserSchema);
